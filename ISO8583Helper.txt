@@ -1,0 +1,355 @@
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+
+namespace ISO8583Helper
+{
+  public class ISOHelper
+  {
+    private static string[] FieldLengths;
+
+    public static Dictionary<short, byte[]> ISO8583_To_Dic(
+      byte[] pMessageData,
+      EncodingType pEncType)
+    {
+      if (ISOHelper.FieldLengths == null)
+        ISOHelper.SetFieldLengths();
+      if (pMessageData.Length < 12)
+        throw new ApplicationException("Mesaj uzunluğu hatalı");
+      Encoding encoding = pEncType == EncodingType.EBCDIC ? Encoding.GetEncoding(1026) : Encoding.ASCII;
+      int index1 = 0;
+      int index2 = 0;
+      Dictionary<short, byte[]> dictionary = new Dictionary<short, byte[]>();
+      try
+      {
+        int length = pMessageData[0] < (byte) 48 ? 2 : 4;
+        byte[] numArray1 = new byte[length];
+        Array.Copy((Array) pMessageData, (Array) numArray1, numArray1.Length);
+        dictionary.Add((short) 0, numArray1);
+        index1 += length;
+        int num1 = 1;
+        if (((int) pMessageData[index1] & 128) > 0)
+          num1 = 2;
+        byte[] pData = new byte[num1 * 8];
+        Array.Copy((Array) pMessageData, index1, (Array) pData, 0, pData.Length);
+        dictionary.Add((short) 1, pData);
+        BitArray bitArray = ISOHelper.ByteArrayToBitArray(pData);
+        index1 += pData.Length;
+        for (index2 = 1; index2 < bitArray.Length; ++index2)
+        {
+          if (bitArray[index2])
+          {
+            bool flag = false;
+            short num2;
+            if (ISOHelper.FieldLengths[index2 + 1].StartsWith("L"))
+            {
+              short num3 = short.Parse(ISOHelper.FieldLengths[index2 + 1].Substring(1));
+              if (pMessageData[index1] >= (byte) 48)
+              {
+                num2 = short.Parse(encoding.GetString(pMessageData, index1, (int) num3));
+                index1 += (int) num3;
+              }
+              else
+              {
+                num2 = short.Parse(ISOHelper.ByteToHex(pMessageData, index1, 1));
+                index1 += (int) num3 / 2;
+                flag = true;
+              }
+            }
+            else
+              num2 = short.Parse(ISOHelper.FieldLengths[index2 + 1]);
+            byte[] numArray2 = flag ? new byte[(int) num2 / 2] : new byte[(int) num2];
+            Array.Copy((Array) pMessageData, index1, (Array) numArray2, 0, numArray2.Length);
+            dictionary.Add((short) (index2 + 1), numArray2);
+            index1 += (int) num2;
+          }
+        }
+      }
+      catch (Exception ex)
+      {
+        throw new ApplicationException(string.Format("Mesaj parse hatası, mesaj ISO8583'e uygun değil, pos:{0}, field:{1} - {2}", (object) index1, (object) (index2 + 1), (object) ex.Message));
+      }
+      return dictionary;
+    }
+
+    public static byte[] Dic_To_ISO8583(Dictionary<short, byte[]> pFields, EncodingType pEncType)
+    {
+      if (ISOHelper.FieldLengths == null)
+        ISOHelper.SetFieldLengths();
+      if (!pFields.ContainsKey((short) 0))
+        throw new ApplicationException("Mesaj tipi alanı yok");
+      Encoding encoding = pEncType == EncodingType.EBCDIC ? Encoding.GetEncoding(1026) : Encoding.ASCII;
+      int num1 = 0;
+      byte[] numArray1 = new byte[4096];
+      int destinationIndex;
+      try
+      {
+        if (pFields[(short) 0].Length != 4)
+          throw new ApplicationException("Mesaj tipi alanının uzunluğu hatalı");
+        Array.Copy((Array) pFields[(short) 0], (Array) numArray1, 4);
+        int num2 = num1 + 4;
+        short num3 = 1;
+        foreach (short key in pFields.Keys)
+        {
+          if (key > (short) 64)
+          {
+            num3 = (short) 2;
+            break;
+          }
+        }
+        BitArray pBitMap = new BitArray(64 * (int) num3);
+        destinationIndex = num2 + 8 * (int) num3;
+        for (int index = 1; index < pBitMap.Length; ++index)
+        {
+          pBitMap.Set(index, pFields.ContainsKey((short) (index + 1)));
+          if (pBitMap[index])
+          {
+            short num4 = 0;
+            short length;
+            if (ISOHelper.FieldLengths[index + 1].StartsWith("L"))
+            {
+              num4 = short.Parse(ISOHelper.FieldLengths[index + 1].Substring(1));
+              length = (short) pFields[(short) (index + 1)].Length;
+            }
+            else
+              length = short.Parse(ISOHelper.FieldLengths[index + 1]);
+            if ((int) length != pFields[(short) (index + 1)].Length)
+              throw new ApplicationException(string.Format("Alan uzunluğu hatalı. Alan: {0}, değer uzunluğu: {1}, olması gereken uzunluk: {2}", (object) (index + 1), (object) pFields[(short) (index + 1)].Length, (object) length));
+            if (num4 > (short) 0)
+            {
+              byte[] bytes = encoding.GetBytes(length.ToString("".PadRight((int) num4, '0')));
+              if (bytes.Length != (int) num4)
+                throw new ApplicationException(string.Format("Değişken alan uzunluğu hatalı. Alan: {0}, değer uzunluğu: {1}, uzunluk: {2}", (object) (index + 1), (object) pFields[(short) (index + 1)].Length, (object) num4));
+              Array.Copy((Array) bytes, 0, (Array) numArray1, destinationIndex, bytes.Length);
+              destinationIndex += bytes.Length;
+            }
+            Array.Copy((Array) pFields[(short) (index + 1)], 0, (Array) numArray1, destinationIndex, (int) length);
+            destinationIndex += (int) length;
+          }
+        }
+        Array.Copy((Array) ISOHelper.BitArrayToByteArray(pBitMap), 0, (Array) numArray1, 4, 8 * (int) num3);
+      }
+      catch (Exception ex)
+      {
+        throw new ApplicationException("Hata oluştu : " + ex.Message);
+      }
+      byte[] numArray2 = new byte[destinationIndex];
+      Array.Copy((Array) numArray1, (Array) numArray2, numArray2.Length);
+      return numArray2;
+    }
+
+    private static void SetFieldLengths()
+    {
+      ISOHelper.FieldLengths = new string[129];
+      ISOHelper.FieldLengths[0] = "4";
+      ISOHelper.FieldLengths[1] = "8-16";
+      ISOHelper.FieldLengths[2] = "L2";
+      ISOHelper.FieldLengths[3] = "6";
+      ISOHelper.FieldLengths[4] = "12";
+      ISOHelper.FieldLengths[5] = "12";
+      ISOHelper.FieldLengths[6] = "12";
+      ISOHelper.FieldLengths[7] = "10";
+      ISOHelper.FieldLengths[8] = "8";
+      ISOHelper.FieldLengths[9] = "8";
+      ISOHelper.FieldLengths[10] = "8";
+      ISOHelper.FieldLengths[11] = "6";
+      ISOHelper.FieldLengths[12] = "6";
+      ISOHelper.FieldLengths[13] = "4";
+      ISOHelper.FieldLengths[14] = "4";
+      ISOHelper.FieldLengths[15] = "4";
+      ISOHelper.FieldLengths[16] = "4";
+      ISOHelper.FieldLengths[17] = "4";
+      ISOHelper.FieldLengths[18] = "4";
+      ISOHelper.FieldLengths[19] = "3";
+      ISOHelper.FieldLengths[20] = "3";
+      ISOHelper.FieldLengths[21] = "3";
+      ISOHelper.FieldLengths[22] = "3";
+      ISOHelper.FieldLengths[23] = "3";
+      ISOHelper.FieldLengths[24] = "3";
+      ISOHelper.FieldLengths[25] = "2";
+      ISOHelper.FieldLengths[26] = "2";
+      ISOHelper.FieldLengths[27] = "1";
+      ISOHelper.FieldLengths[28] = "8";
+      ISOHelper.FieldLengths[29] = "8";
+      ISOHelper.FieldLengths[30] = "8";
+      ISOHelper.FieldLengths[31] = "8";
+      ISOHelper.FieldLengths[32] = "L2";
+      ISOHelper.FieldLengths[33] = "L2";
+      ISOHelper.FieldLengths[34] = "L2";
+      ISOHelper.FieldLengths[35] = "L2";
+      ISOHelper.FieldLengths[36] = "L3";
+      ISOHelper.FieldLengths[37] = "12";
+      ISOHelper.FieldLengths[38] = "6";
+      ISOHelper.FieldLengths[39] = "2";
+      ISOHelper.FieldLengths[40] = "3";
+      ISOHelper.FieldLengths[41] = "8";
+      ISOHelper.FieldLengths[42] = "15";
+      ISOHelper.FieldLengths[43] = "40";
+      ISOHelper.FieldLengths[44] = "L2";
+      ISOHelper.FieldLengths[45] = "L2";
+      ISOHelper.FieldLengths[46] = "L3";
+      ISOHelper.FieldLengths[47] = "L3";
+      ISOHelper.FieldLengths[48] = "L3";
+      ISOHelper.FieldLengths[49] = "3";
+      ISOHelper.FieldLengths[50] = "3";
+      ISOHelper.FieldLengths[51] = "3";
+      ISOHelper.FieldLengths[52] = "16";
+      ISOHelper.FieldLengths[53] = "16";
+      ISOHelper.FieldLengths[54] = "L3";
+      ISOHelper.FieldLengths[55] = "L3";
+      ISOHelper.FieldLengths[56] = "L3";
+      ISOHelper.FieldLengths[57] = "L3";
+      ISOHelper.FieldLengths[58] = "L3";
+      ISOHelper.FieldLengths[59] = "L3";
+      ISOHelper.FieldLengths[60] = "L1";
+      ISOHelper.FieldLengths[61] = "L3";
+      ISOHelper.FieldLengths[62] = "L3";
+      ISOHelper.FieldLengths[63] = "L3";
+      ISOHelper.FieldLengths[64] = "16";
+      ISOHelper.FieldLengths[65] = "64";
+      ISOHelper.FieldLengths[66] = "1";
+      ISOHelper.FieldLengths[67] = "2";
+      ISOHelper.FieldLengths[68] = "3";
+      ISOHelper.FieldLengths[69] = "3";
+      ISOHelper.FieldLengths[70] = "3";
+      ISOHelper.FieldLengths[71] = "4";
+      ISOHelper.FieldLengths[72] = "L3";
+      ISOHelper.FieldLengths[73] = "6";
+      ISOHelper.FieldLengths[74] = "10";
+      ISOHelper.FieldLengths[75] = "10";
+      ISOHelper.FieldLengths[76] = "10";
+      ISOHelper.FieldLengths[77] = "10";
+      ISOHelper.FieldLengths[78] = "10";
+      ISOHelper.FieldLengths[79] = "10";
+      ISOHelper.FieldLengths[80] = "10";
+      ISOHelper.FieldLengths[81] = "10";
+      ISOHelper.FieldLengths[82] = "12";
+      ISOHelper.FieldLengths[83] = "12";
+      ISOHelper.FieldLengths[84] = "12";
+      ISOHelper.FieldLengths[85] = "12";
+      ISOHelper.FieldLengths[86] = "15";
+      ISOHelper.FieldLengths[87] = "15";
+      ISOHelper.FieldLengths[88] = "15";
+      ISOHelper.FieldLengths[89] = "15";
+      ISOHelper.FieldLengths[90] = "42";
+      ISOHelper.FieldLengths[91] = "1";
+      ISOHelper.FieldLengths[92] = "2";
+      ISOHelper.FieldLengths[93] = "5";
+      ISOHelper.FieldLengths[94] = "7";
+      ISOHelper.FieldLengths[95] = "42";
+      ISOHelper.FieldLengths[96] = "8";
+      ISOHelper.FieldLengths[97] = "16";
+      ISOHelper.FieldLengths[98] = "25";
+      ISOHelper.FieldLengths[99] = "L2";
+      ISOHelper.FieldLengths[100] = "L2";
+      ISOHelper.FieldLengths[101] = "17";
+      ISOHelper.FieldLengths[102] = "L2";
+      ISOHelper.FieldLengths[103] = "L2";
+      ISOHelper.FieldLengths[104] = "L3";
+      ISOHelper.FieldLengths[105] = "L3";
+      ISOHelper.FieldLengths[106] = "L3";
+      ISOHelper.FieldLengths[107] = "L3";
+      ISOHelper.FieldLengths[108] = "L3";
+      ISOHelper.FieldLengths[109] = "L3";
+      ISOHelper.FieldLengths[110] = "L3";
+      ISOHelper.FieldLengths[111] = "L3";
+      ISOHelper.FieldLengths[112] = "L3";
+      ISOHelper.FieldLengths[113] = "L2";
+      ISOHelper.FieldLengths[114] = "L3";
+      ISOHelper.FieldLengths[115] = "L3";
+      ISOHelper.FieldLengths[116] = "L3";
+      ISOHelper.FieldLengths[117] = "L3";
+      ISOHelper.FieldLengths[118] = "L3";
+      ISOHelper.FieldLengths[119] = "L3";
+      ISOHelper.FieldLengths[120] = "L3";
+      ISOHelper.FieldLengths[121] = "L3";
+      ISOHelper.FieldLengths[122] = "L3";
+      ISOHelper.FieldLengths[123] = "L3";
+      ISOHelper.FieldLengths[124] = "L3";
+      ISOHelper.FieldLengths[125] = "L2";
+      ISOHelper.FieldLengths[126] = "L3";
+      ISOHelper.FieldLengths[(int) sbyte.MaxValue] = "L3";
+      ISOHelper.FieldLengths[128] = "16";
+    }
+
+    private static BitArray ByteArrayToBitArray(byte[] pData)
+    {
+      byte[] numArray = new byte[8]
+      {
+        (byte) 128,
+        (byte) 64,
+        (byte) 32,
+        (byte) 16,
+        (byte) 8,
+        (byte) 4,
+        (byte) 2,
+        (byte) 1
+      };
+      BitArray bitArray = new BitArray(pData.Length * 8);
+      for (int index1 = 0; index1 < pData.Length; ++index1)
+      {
+        for (int index2 = 0; index2 < 8; ++index2)
+          bitArray.Set(index1 * 8 + index2, ((int) pData[index1] & (int) numArray[index2]) > 0);
+      }
+      return bitArray;
+    }
+
+    private static BitArray ByteArrayToBitArray(byte[] pData, int pPosition, int pLength)
+    {
+      byte[] pData1 = new byte[pLength];
+      Array.Copy((Array) pData, pPosition, (Array) pData1, 0, pData1.Length);
+      return ISOHelper.ByteArrayToBitArray(pData1);
+    }
+
+    private static byte[] BitArrayToByteArray(BitArray pBitMap)
+    {
+      int length = pBitMap.Count / 8;
+      if ((uint) (pBitMap.Count % 8) > 0U)
+        ++length;
+      byte[] numArray = new byte[length];
+      int index1 = 0;
+      int num = 0;
+      for (int index2 = 0; index2 < pBitMap.Count; ++index2)
+      {
+        if (pBitMap[index2])
+          numArray[index1] |= (byte) (1 << 7 - num);
+        ++num;
+        if (num == 8)
+        {
+          num = 0;
+          ++index1;
+        }
+      }
+      return numArray;
+    }
+
+    private static byte[] HexToByte(string Hex)
+    {
+      byte[] numArray = new byte[Hex.Length / 2];
+      for (int startIndex = 0; startIndex < Hex.Length; startIndex += 2)
+        numArray[startIndex / 2] = byte.Parse(Hex.Substring(startIndex, 2), NumberStyles.HexNumber);
+      return numArray;
+    }
+
+    private static string ByteToHex(byte[] byteData)
+    {
+      StringBuilder stringBuilder = new StringBuilder();
+      foreach (byte num in byteData)
+        stringBuilder.AppendFormat("{0:X2}", (object) num);
+      return stringBuilder.ToString();
+    }
+
+    private static string ByteToHex(byte[] byteData, int pos, int length)
+    {
+      if (length > byteData.Length - pos)
+        length = byteData.Length - pos;
+      StringBuilder stringBuilder = new StringBuilder();
+      for (int index = pos; index < pos + length; ++index)
+        stringBuilder.AppendFormat("{0:X2}", (object) byteData[index]);
+      return stringBuilder.ToString();
+    }
+  }
+}
