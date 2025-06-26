@@ -1,0 +1,25 @@
+public class LoggingRetryer implements Retryer {
+
+    private final Logger logger = LoggerFactory.getLogger(LoggingRetryer.class);
+    private int attempt = 1;
+    private final int maxAttempts = 5;
+    private final long backoff = 200; // ms
+
+    @Override
+    public void continueOrPropagate(RetryableException e) {
+        logger.warn("Feign retry attempt: {}", attempt);
+        if (attempt++ >= maxAttempts) {
+            throw e;
+        }
+        try {
+            Thread.sleep(backoff);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @Override
+    public Retryer clone() {
+        return new LoggingRetryer();
+    }
+}
