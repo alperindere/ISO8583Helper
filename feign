@@ -23,3 +23,21 @@ public class LoggingRetryer implements Retryer {
         return new LoggingRetryer();
     }
 }
+
+
+@RestController
+public class DummyServerController {
+
+    @GetMapping("/unstable")
+    public ResponseEntity<String> unstableEndpoint() {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                             .body("Simulated failure");
+    }
+}
+
+
+@FeignClient(name = "testClient", url = "http://localhost:8080")
+public interface TestClient {
+    @GetMapping("/unstable")
+    String callUnstable();
+}
