@@ -1,0 +1,44 @@
+using System;
+using System.Security.Cryptography;
+
+class AesKcvCalculator
+{
+    public static byte[] HexStringToByteArray(string hex)
+    {
+        if (hex.Length % 2 != 0)
+            throw new ArgumentException("Hex string length must be even.");
+        byte[] result = new byte[hex.Length / 2];
+        for (int i = 0; i < result.Length; i++)
+            result[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+        return result;
+    }
+
+    public static string CalculateAesKcv(string hexKey)
+    {
+        byte[] key = HexStringToByteArray(hexKey);
+
+        using (Aes aesAlg = Aes.Create())
+        {
+            aesAlg.Key = key;
+            aesAlg.Mode = CipherMode.ECB;
+            aesAlg.Padding = PaddingMode.None;
+
+            byte[] zeroBlock = new byte[16]; // 16 byte sıfır veri
+
+            using (ICryptoTransform encryptor = aesAlg.CreateEncryptor())
+            {
+                byte[] cipher = encryptor.TransformFinalBlock(zeroBlock, 0, zeroBlock.Length);
+
+                // İlk 3 byte = 6 hex karakter = KCV
+                return BitConverter.ToString(cipher, 0, 3).Replace("-", "");
+            }
+        }
+    }
+
+    static void Main()
+    {
+        string hexKey = "603DEB1015CA71BE2B73AEF0857D7781F352C073B6108D72D9810A30914DFF4"; // 64 karakter (32 byte)
+        string kcv = CalculateAesKcv(hexKey);
+        Console.WriteLine("KCV: " + kcv);  // Örn: "F1D2C3"
+    }
+}
