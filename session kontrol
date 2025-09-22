@@ -1,0 +1,15 @@
+-- Aktif beklemeleri gör
+SELECT s.sid, s.serial#, s.username, s.program,
+       s.sql_id, s.event, s.state, s.wait_class, s.seconds_in_wait
+FROM   v$session s
+WHERE  s.status='ACTIVE' AND s.type='USER';
+
+-- Çalışan SQL'in planı ve istatistiği
+SELECT sql_id, elapsed_time/1e6 AS elapsed_s, buffer_gets, disk_reads, executions, sql_text
+FROM   v$sql
+WHERE  sql_id = :sql_id;
+
+-- Uzun işler
+SELECT opname, sofar, totalwork, elapsed_seconds
+FROM   v$session_longops
+WHERE  sid = :sid AND sofar < totalwork;
