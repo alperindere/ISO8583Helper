@@ -1,0 +1,27 @@
+Özellik
+Örnek
+Not
+Kart velocity
+5dk/1s/24s adet & toplam
+Redis counter (card_id × window)
+Merchant/MCC history
+kart×MCC onay oranı
+“alışkanlık” skoru
+Tutar anomalisi
+z-skor (kartın tipik tutarı)
+robust scaling
+Coğrafya
+BIN ülke ≟ merchant ülke ≟ IP ASN
+mismatch = yüksek risk
+Kanal/entry
+e-com vs chip&PIN vs magstripe
+magstripe risky
+EMV sinyalleri
+9F27, TVR, ARQC var/yok
+ARQC belirsiz = decline
+3DS/SCA
+frictionless, liability shift
+threshold’u esnetebilir
+Cihaz/terminal
+terminal risk klasmanı
+whitelist/graylist/blacklist
