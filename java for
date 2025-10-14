@@ -1,0 +1,12 @@
+private ReceiptDetailInput.ReceiptDetailInputBuilder base(AccountingInput in, String contractNo) {
+    return ReceiptDetailInput.builder()
+            .account(String.valueOf(in.getSenderAccountNo()))
+            .contractNo(contractNo)
+            .processCode(PROCESS_CODE);
+}
+
+List<ReceiptDetailInput> details = List.of(
+    base(in, cn).fieldOrder(514).value(in.getSenderName()).build(),
+    base(in, cn).fieldOrder(610).numericValue(in.getSenderAccountNo().longValue()).build(),
+    base(in, cn).fieldOrder(527).numericValue(in.getSenderBranchCode().longValue()).build()
+);
