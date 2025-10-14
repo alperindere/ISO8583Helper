@@ -10,3 +10,9 @@ List<ReceiptDetailInput> details = List.of(
     base(in, cn).fieldOrder(610).numericValue(in.getSenderAccountNo().longValue()).build(),
     base(in, cn).fieldOrder(527).numericValue(in.getSenderBranchCode().longValue()).build()
 );
+
+public final class Fields {
+    public static final int SENDER_NAME = 514;
+    public static final int SENDER_ACC  = 610;
+    public static final int SENDER_BRCH = 527;
+}
