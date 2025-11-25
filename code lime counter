@@ -1,0 +1,5 @@
+(Get-ChildItem -Recurse -Include *.cpp, *.h, *.cs | 
+ForEach-Object { (Get-Content $_.FullName).Count }) | Measure-Object -Sum
+
+Get-ChildItem -Recurse -Include *.cpp, *.h, *.cs | 
+Select-Object FullName, @{Name="Lines"; Expression={(Get-Content $_.FullName).Count}}
