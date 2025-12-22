@@ -1,118 +1,28 @@
-ÜRÜN 1 — Mastercard Switch (Authorization Platform)
-
-1️⃣ Ürün Tanımı
-
-Mastercard Switch, Mastercard ağı üzerinden gelen online yetkilendirme (authorization) mesajlarının gerçek zamanlı olarak işlenmesini, risk/limit kontrollerinin uygulanmasını ve işlemin onay/red kararının Mastercard’a SLA’ler dahilinde iletilmesini sağlayan çekirdek ödeme platformudur.
-
-Bu ürün, müşteri deneyimini doğrudan etkileyen düşük gecikmeli ve yüksek erişilebilirlik gerektiren kritik bir platformdur.
-
-⸻
-
-2️⃣ İş Kapsamı (Scope)
-
-Dahil Olanlar
-	•	Mastercard online bağlantısı (authorization channel)
-	•	ISO8583 mesaj işleme (0100 / 0120 / 0420 vb.)
-	•	Transaction routing & orchestration
-	•	Limit ve bakiye kontrolleri
-	•	Risk & fraud karar entegrasyonu
-	•	Nakit avans / purchase / reversal akışları
-	•	Idempotency & duplicate handling
-	•	HSM entegrasyonu (PIN, MAC, ARQC/ARPC)
-	•	SLA, latency, availability yönetimi
-
-Hariç Olanlar
-	•	Clearing / settlement
-	•	Fee hesaplama
-	•	Muhasebe kayıtları
-	•	Mutabakat
-	•	Chargeback lifecycle
-
-⸻
-
-3️⃣ Temel Yetkinlikler (Capabilities)
-
-Alan
-Açıklama
-Real-time Processing
-<100 ms P99 hedefi
-Stateless Scaling
-Yatay ölçeklenebilir mimari
-High Availability
-Active-Active / multi-region
-Scheme Compliance
-Mastercard authorization rules
-Risk Isolation
-Risk kararlarının plug-in modelle çalışması
-Observability
-TPS, latency, decline reason metrics
-
-
-
-
-
-
-
-
-
-⸻
-
-4️⃣ Ürün SLA & Operasyonel Özellikler
-	•	Latency: Kritik (müşteri POS/ATM bekliyor)
-	•	Availability: %99.99+
-	•	Deploy Penceresi: Sınırlı
-	•	Failure Tolerance: Yok (fail-fast, fallback)
-
-⸻
-
-5️⃣ Ürün Sahipliği
-	•	Business Owner: Kartlı Ödeme Sistemleri
-	•	Tech Owner: Switch / Authorization Team
-	•	Başarı Kriteri: Düşük decline oranı, düşük latency, network compliance
-
-⸻
-
-🟩 ÜRÜN 2 — Mastercard Clearing & Settlement (Takas Platformu)
-
-1️⃣ Ürün Tanımı
-
-Mastercard Takas Platformu, Mastercard tarafından iletilen clearing ve settlement dosyalarının alınması, doğrulanması, bankanın iç sistemleriyle mutabakatının yapılması ve finansal kayıtların oluşturulmasını sağlayan finansal doğruluk odaklı ödeme ürünüdür.
-
-Bu ürün, yetkilendirilmiş işlemlerin finansal gerçekliğe dönüştüğü katmandır.
-
-⸻
-
-2️⃣ İş Kapsamı (Scope)
-
-Dahil Olanlar
-	•	Mastercard clearing dosyalarının alımı
-	•	Dosya validasyonu ve parsing
-	•	Authorization–clearing eşleştirmesi
-	•	Fee & interchange hesaplamaları
-	•	Settlement amount hesapları
-	•	GL / muhasebe sistemleri entegrasyonu
-	•	Raporlama & mutabakat
-	•	Exception & retry yönetimi
-
-Hariç Olanlar
-	•	Online authorization
-	•	Real-time risk kararları
-	•	POS / ATM müşteri etkileşimi
-
-⸻
-
-3️⃣ Temel Yetkinlikler (Capabilities
-Alan
-Açıklama
-Batch Processing
-Yüksek hacimli dosya işleme
-Financial Accuracy
-%100 doğruluk hedefi
-Eventual Consistency
-Zamanla tutarlılık
-Audit Trail
-Tam izlenebilirlik
-Exception Handling
-Manual/automatic düzeltme
-Scheme Rules
-Mastercard clearing kuralları
+Bir banka olarak JCB (Japan Credit Bureau) ağına hem Acquirer (Üye İşyeri Anlaşmalı Banka) hem de Switch/Takas (Clearing) seviyesinde entegre olmanız, kartlı ödeme sistemleri ekosisteminde "Tam Hizmet Sağlayıcı" konumunda olduğunuzu gösterir.
+Bu yapıdaki rolünüzü, ürün tanımlarınızı ve fonksiyonlarınızı aşağıda özetledim:
+1. Ürün Tanımınız: JCB Acquirer & Settlement Agent
+Siz, JCB logolu kartların (yerli veya yabancı) sizin POS ve ATM ağınızda işlem görmesini sağlayan, bu işlemlerin finansal otorizasyonunu yöneten ve JCB International ile karşılıklı borç-alacak ilişkisini (settlement) yürüten lisanslı bir otoritesiniz.
+Temel Ürün Bileşenleriniz:
+• JCB Merchant Acquiring: İşyerlerine JCB kart kabulü yeteneği sunan ticari ürün.
+• JCB ATM Acquiring: Yurt dışından gelen JCB kart sahiplerine nakit çekim imkanı sağlayan altyapı.
+• Direct Connectivity (Gateway): JCB ana merkezine doğrudan bağlı otorizasyon kanalı.
+2. Operasyonel Fonksiyonlarınız
+A. Otorizasyon (Switch) Fonksiyonu
+Bu aşama, işlemin saniyeler içinde onaylandığı "real-time" kısımdır.
+• Protokol Dönüşümü: İşyerinden gelen mesajı (genellikle ISO 8583 formatında) JCB standartlarına dönüştürerek JCB networküne iletirsiniz.
+• Stand-in Processing (STIP): Eğer JCB networkünde geçici bir kesinti olursa, önceden belirlenmiş limitler dahilinde banka olarak işlem onaylama/reddetme yetkisini kullanabilirsiniz.
+• Güvenlik Kontrolü: Chip (EMV) doğrulama, CVV2 kontrolü ve 3D Secure (J/Secure) süreçlerinin teknik switch yönetimini yaparsınız.
+B. Takas ve Mutabakat (Clearing & Settlement) Fonksiyonu
+Bu aşama, işlemin gerçekleşmesinden sonraki "parasal transfer" kısmıdır.
+• Dosya Hazırlama: Gün sonunda gerçekleşen tüm JCB işlemlerini içeren Incoming/Outgoing takas dosyalarını hazırlar ve iletirsiniz.
+• Net Settlement: JCB International ile olan borç-alacak pozisyonunuzu hesaplarsınız.
+• Komisyon Yönetimi: Interchange (Takas Payı) ve Merchant Discount Rate (MDR) hesaplamalarını yaparak, işyerine yapılacak net ödemeyi belirlersiniz.
+C. Üye İşyeri Yönetimi
+• Merchant Onboarding: İşyerlerini JCB kabulü için sisteme tanımlarsınız.
+• Dispute (İtiraz) Yönetimi: Chargeback (ters ibraz) süreçlerinde JCB kuralları çerçevesinde bankayı ve işyerini temsil edersiniz.
+3. Stratejik Avantajlarınız
+Bu entegrasyon seviyesi size şu yetkinlikleri kazandırır:
+• Düşük Maliyet: Aracı kurum (TROY, BKM veya başka bir switch merkezi) kullanmadan doğrudan JCB ile çalıştığınız için işlem başına maliyetleriniz düşer.
+• Asya Pazarı Erişimi: Özellikle Japonya ve Asya kökenli turistlerin/iş insanlarının yoğun olduğu bölgelerde işyerlerinize ciddi bir ödeme alternatifi sunarsınız.
+• Hız: Doğrudan bağlantı sayesinde otorizasyon sürelerini (latency) minimize edersiniz.
+Özet Tablo
