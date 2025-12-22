@@ -1,0 +1,118 @@
+ÜRÜN 1 — Mastercard Switch (Authorization Platform)
+
+1️⃣ Ürün Tanımı
+
+Mastercard Switch, Mastercard ağı üzerinden gelen online yetkilendirme (authorization) mesajlarının gerçek zamanlı olarak işlenmesini, risk/limit kontrollerinin uygulanmasını ve işlemin onay/red kararının Mastercard’a SLA’ler dahilinde iletilmesini sağlayan çekirdek ödeme platformudur.
+
+Bu ürün, müşteri deneyimini doğrudan etkileyen düşük gecikmeli ve yüksek erişilebilirlik gerektiren kritik bir platformdur.
+
+⸻
+
+2️⃣ İş Kapsamı (Scope)
+
+Dahil Olanlar
+	•	Mastercard online bağlantısı (authorization channel)
+	•	ISO8583 mesaj işleme (0100 / 0120 / 0420 vb.)
+	•	Transaction routing & orchestration
+	•	Limit ve bakiye kontrolleri
+	•	Risk & fraud karar entegrasyonu
+	•	Nakit avans / purchase / reversal akışları
+	•	Idempotency & duplicate handling
+	•	HSM entegrasyonu (PIN, MAC, ARQC/ARPC)
+	•	SLA, latency, availability yönetimi
+
+Hariç Olanlar
+	•	Clearing / settlement
+	•	Fee hesaplama
+	•	Muhasebe kayıtları
+	•	Mutabakat
+	•	Chargeback lifecycle
+
+⸻
+
+3️⃣ Temel Yetkinlikler (Capabilities)
+
+Alan
+Açıklama
+Real-time Processing
+<100 ms P99 hedefi
+Stateless Scaling
+Yatay ölçeklenebilir mimari
+High Availability
+Active-Active / multi-region
+Scheme Compliance
+Mastercard authorization rules
+Risk Isolation
+Risk kararlarının plug-in modelle çalışması
+Observability
+TPS, latency, decline reason metrics
+
+
+
+
+
+
+
+
+
+⸻
+
+4️⃣ Ürün SLA & Operasyonel Özellikler
+	•	Latency: Kritik (müşteri POS/ATM bekliyor)
+	•	Availability: %99.99+
+	•	Deploy Penceresi: Sınırlı
+	•	Failure Tolerance: Yok (fail-fast, fallback)
+
+⸻
+
+5️⃣ Ürün Sahipliği
+	•	Business Owner: Kartlı Ödeme Sistemleri
+	•	Tech Owner: Switch / Authorization Team
+	•	Başarı Kriteri: Düşük decline oranı, düşük latency, network compliance
+
+⸻
+
+🟩 ÜRÜN 2 — Mastercard Clearing & Settlement (Takas Platformu)
+
+1️⃣ Ürün Tanımı
+
+Mastercard Takas Platformu, Mastercard tarafından iletilen clearing ve settlement dosyalarının alınması, doğrulanması, bankanın iç sistemleriyle mutabakatının yapılması ve finansal kayıtların oluşturulmasını sağlayan finansal doğruluk odaklı ödeme ürünüdür.
+
+Bu ürün, yetkilendirilmiş işlemlerin finansal gerçekliğe dönüştüğü katmandır.
+
+⸻
+
+2️⃣ İş Kapsamı (Scope)
+
+Dahil Olanlar
+	•	Mastercard clearing dosyalarının alımı
+	•	Dosya validasyonu ve parsing
+	•	Authorization–clearing eşleştirmesi
+	•	Fee & interchange hesaplamaları
+	•	Settlement amount hesapları
+	•	GL / muhasebe sistemleri entegrasyonu
+	•	Raporlama & mutabakat
+	•	Exception & retry yönetimi
+
+Hariç Olanlar
+	•	Online authorization
+	•	Real-time risk kararları
+	•	POS / ATM müşteri etkileşimi
+
+⸻
+
+3️⃣ Temel Yetkinlikler (Capabilities
+Alan
+Açıklama
+Batch Processing
+Yüksek hacimli dosya işleme
+Financial Accuracy
+%100 doğruluk hedefi
+Eventual Consistency
+Zamanla tutarlılık
+Audit Trail
+Tam izlenebilirlik
+Exception Handling
+Manual/automatic düzeltme
+Scheme Rules
+Mastercard clearing kuralları
