@@ -1,0 +1,67 @@
+using System;
+using System.IO;
+using System.Linq;
+
+namespace SatirSayici
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // Konsol başlığını ayarla
+            Console.Title = "C# Console Satır Sayacı";
+
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine("========================================");
+                Console.WriteLine("       DOSYA SATIR SAYICI (C#)          ");
+                Console.WriteLine("========================================");
+                Console.WriteLine("\nSayılacak dosyanın tam yolunu girin (Çıkış için 'exit' yazın):");
+                Console.Write("Yol: ");
+
+                string input = Console.ReadLine();
+
+                // Çıkış kontrolü
+                if (input?.ToLower() == "exit") break;
+
+                // Dosya yolu tırnak içinde kopyalanmışsa tırnakları temizle
+                string dosyaYolu = input?.Replace("\"", "");
+
+                if (File.Exists(dosyaYolu))
+                {
+                    try
+                    {
+                        // Tüm satırları oku
+                        string[] tumSatirlar = File.ReadAllLines(dosyaYolu);
+                        
+                        // Boş olmayan satırları hesapla (opsiyonel)
+                        int doluSatirSayisi = tumSatirlar.Count(s => !string.IsNullOrWhiteSpace(s));
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("\n--- SONUÇLAR ---");
+                        Console.WriteLine($"Toplam Satır Sayısı      : {tumSatirlar.Length}");
+                        Console.WriteLine($"Dolu Satır Sayısı        : {doluSatirSayisi}");
+                        Console.WriteLine($"Dosya Boyutu             : {new FileInfo(dosyaYolu).Length / 1024.0:F2} KB");
+                        Console.ResetColor();
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"\nHata: Dosya okunurken bir sorun oluştu: {ex.Message}");
+                        Console.ResetColor();
+                    }
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\nUYARI: Belirtilen yolda bir dosya bulunamadı!");
+                    Console.ResetColor();
+                }
+
+                Console.WriteLine("\nDevam etmek için bir tuşa basın...");
+                Console.ReadKey();
+            }
+        }
+    }
+}
