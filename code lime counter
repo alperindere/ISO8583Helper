@@ -1,5 +1,56 @@
-(Get-ChildItem -Recurse -Include *.cpp, *.h, *.cs | 
-ForEach-Object { (Get-Content $_.FullName).Count }) | Measure-Object -Sum
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <limits>
 
-Get-ChildItem -Recurse -Include *.cpp, *.h, *.cs | 
-Select-Object FullName, @{Name="Lines"; Expression={(Get-Content $_.FullName).Count}}
+using namespace std;
+
+int main() {
+    // Türkçe karakter desteği (Windows için)
+    setlocale(LC_ALL, "Turkish");
+
+    string dosyaYolu;
+    char tekrar;
+
+    do {
+        system("cls"); // Konsolu temizle
+        cout << "========================================" << endl;
+        cout << "       C++ DOSYA SATIR SAYICI           " << endl;
+        cout << "========================================" << endl;
+        
+        cout << "\nLütfen dosya yolunu girin: ";
+        getline(cin >> ws, dosyaYolu); // Satırın tamamını oku (boşluklar dahil)
+
+        // Tırnak işaretlerini temizle (Yol olarak kopyala denildiğinde oluşur)
+        if (!dosyaYolu.empty() && dosyaYolu.front() == '"') {
+            dosyaYolu.erase(0, 1);
+            dosyaYolu.erase(dosyaYolu.size() - 1);
+        }
+
+        ifstream dosya(dosyaYolu);
+
+        if (dosya.is_open()) {
+            int toplamSatir = 0;
+            string satir;
+
+            while (getline(dosya, satir)) {
+                toplamSatir++;
+            }
+
+            cout << "\n----------------------------------------" << endl;
+            cout << "Sonuç: " << toplamSatir << " satır bulundu." << endl;
+            cout << "----------------------------------------" << endl;
+            
+            dosya.close();
+        } else {
+            cerr << "\nHATA: Dosya açılamadı! Yolun doğru olduğundan emin olun." << endl;
+        }
+
+        cout << "\nBaşka bir dosya saymak ister misiniz? (E/H): ";
+        cin >> tekrar;
+
+    } while (tekrar == 'e' || tekrar == 'E');
+
+    cout << "\nProgram kapatılıyor..." << endl;
+    return 0;
+}
