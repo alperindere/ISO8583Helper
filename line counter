@@ -1,0 +1,41 @@
+using System;
+using System.IO;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("--- C# Satır Sayıcı Uygulaması ---");
+        Console.Write("Lütfen dosya yolunu girin: ");
+        string dosyaYolu = Console.ReadLine();
+
+        // Dosyanın var olup olmadığını kontrol ediyoruz
+        if (File.Exists(dosyaYolu))
+        {
+            try
+            {
+                // Tüm satırları bir diziye okur
+                string[] satirlar = File.ReadAllLines(dosyaYolu);
+                int satirSayisi = satirlar.Length;
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"\nİşlem Başarılı!");
+                Console.WriteLine($"Toplam Satır Sayısı: {satirSayisi}");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Hata oluştu: {ex.Message}");
+            }
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Hata: Belirtilen dosya bulunamadı.");
+            Console.ResetColor();
+        }
+
+        Console.WriteLine("\nÇıkmak için bir tuşa basın...");
+        Console.ReadKey();
+    }
+}
