@@ -1,0 +1,62 @@
+JCB Gateway – Confluence alt ürün tanımı (şablon)
+
+1. Overview
+	•	Name: JCB Network Gateway
+	•	Type: Capability / Adapter (Alt ürün)
+	•	Parent Product: Card Authorization Platform
+	•	Owner Team: Network Integration (JCB)
+	•	Primary Goal: JCB network’üne giden/gelen mesajların güvenli, sertifikasyon uyumlu ve SLA’lı taşınması
+
+2. In Scope
+	•	JCB message mapping (ISO8583 alan eşlemeleri, subfield/variant’lar)
+	•	JCB-specific response code mapping → internal error model
+	•	JCB timeout/retry/backoff politikaları (platform policy’ye uyumlu)
+	•	JCB sertifika/anahtar/konfig yönetimi (channel keys, endpoint, cert)
+	•	JCB simulator & certification test harness uyumluluğu
+	•	Network bağlantı yönetimi (TCP/IP, TLS varsa), reconnect, keepalive
+
+3. Out of Scope
+	•	Authorization business logic (iş kuralları)
+	•	Risk/fraud kararları
+	•	Idempotency/duplicate detection
+	•	HSM işlemlerinin iş kuralı (sadece “HSM Facade” çağırır)
+	•	Genel logging/monitoring framework (platform sağlar)
+
+4. APIs / Contracts
+	•	Northbound (Platform → JCB Gateway):
+	•	Authorize(), Reversal(), Advice(), Capture() (gerekiyorsa)
+	•	Request/Response: platform canonical model (internal DTO)
+	•	Southbound (JCB Gateway → Network):
+	•	JCB spec’e göre ISO8583 mapping / transport
+
+5. SLA / SLO
+	•	P99 latency budget (Gateway): ör. 10–20 ms (network hariç)
+	•	Availability: ör. 99.9%
+	•	Error budget & alerting: timeout rate, reject rate, mapping errors
+
+6. KPIs
+	•	승인 성공 oranı (approved rate) / decline distribution
+	•	timeout / retry / fallback oranları
+	•	mapping validation error sayısı
+	•	certification test pass rate
+
+7. Dependencies
+	•	Routing & Rules Service
+	•	HSM Facade Service
+	•	Config/Secrets (Vault/KMS), certificate store
+	•	Observability stack (metrics, tracing)
+
+8. Risks & Controls
+	•	Sertifikasyon kırılmaları (spec değişimi)
+	•	Endpoint/cert rotasyonu
+	•	Idempotency yanlış yerde yapılırsa duplicate charge riski (platformda kalmalı)
+	•	Rate limiting / circuit breaker konfigürasyonu
+
+⸻
+
+Minimum “ürün isimleri” önerisi (senin terminolojiye uygun)
+	•	Card Authorization Switch (ürün)
+	•	JCB Network Gateway (alt ürün)
+	•	Visa Network Gateway
+	•	Mastercard Network Gateway
+	•	Clearing & Settlement (ürün)
