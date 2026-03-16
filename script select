@@ -1,0 +1,11 @@
+SELECT /*+ PARALLEL(8) USE_HASH(t r) LEADING(r t) */
+    t.*
+FROM oc_bin.bin_visa_list r
+JOIN oc_txn.txn_acquirer t
+    ON t.f2 LIKE r.low_bin || '%'   -- veya aşağıdaki alternatif
+WHERE r.country      = 'LY'
+  AND r.active_flag  = 'A'
+  AND r.status       = 1
+  AND t.req_date     > 20260314
+  AND t.local_txn_amnt > 1000
+  AND t.f18          = '6011';
