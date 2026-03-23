@@ -1,0 +1,197 @@
+WITH this_week AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_this_week
+    FROM txn_acquirer
+    WHERE trunc(insert_date) >= trunc(sysdate) - 7
+      AND trunc(insert_date) <  trunc(sysdate)
+    GROUP BY response_code
+),
+last_week AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_last_week
+    FROM txn_acquirer
+    WHERE trunc(insert_date) >= trunc(sysdate) - 14
+      AND trunc(insert_date) <  trunc(sysdate) - 7
+    GROUP BY response_code
+),
+combined AS (
+    SELECT
+        COALESCE(t.response_code, l.response_code) AS response_code,
+        NVL(t.cnt_this_week, 0)                    AS cnt_this_week,
+        NVL(l.cnt_last_week, 0)                    AS cnt_last_week
+    FROM this_week t
+    FULL OUTER JOIN last_week l
+        ON t.response_code = l.response_code
+)
+SELECT
+    response_code,
+    cnt_this_week,
+    cnt_last_week,
+    (cnt_this_week - cnt_last_week)                          AS fark,
+    CASE
+        WHEN cnt_last_week = 0 THEN NULL
+        ELSE ROUND(
+            (cnt_this_week - cnt_last_week) / cnt_last_week * 100,
+            2
+        )
+    END                                                       AS degisim_yuzde,
+    CASE
+        WHEN cnt_this_week > cnt_last_week THEN '↑ ARTTI'
+        WHEN cnt_this_week < cnt_last_week THEN '↓ AZALDI'
+        ELSE '= AYNI'
+    END                                                       AS trend
+FROM combined
+ORDER BY ABS(cnt_this_week - cnt_last_week) DESC;
+
+
+
+
+
+WITH today AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_today
+    FROM txn_acquirer
+    WHERE trunc(insert_date) = trunc(sysdate)
+    GROUP BY response_code
+),
+yesterday AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_yesterday
+    FROM txn_acquirer
+    WHERE trunc(insert_date) = trunc(sysdate) - 1
+    GROUP BY response_code
+),
+combined AS (
+    SELECT
+        COALESCE(t.response_code, y.response_code) AS response_code,
+        NVL(t.cnt_today,     0)                    AS cnt_today,
+        NVL(y.cnt_yesterday, 0)                    AS cnt_yesterday
+    FROM today t
+    FULL OUTER JOIN yesterday y
+        ON t.response_code = y.response_code
+)
+SELECT
+    response_code,
+    cnt_today,
+    cnt_yesterday,
+    (cnt_today - cnt_yesterday)                           AS fark,
+    CASE
+        WHEN cnt_yesterday = 0 THEN NULL
+        ELSE ROUND(
+            (cnt_today - cnt_yesterday) / cnt_yesterday * 100,
+            2
+        )
+    END                                                    AS degisim_yuzde,
+    CASE
+        WHEN cnt_today > cnt_yesterday THEN '↑ ARTTI'
+        WHEN cnt_today < cnt_yesterday THEN '↓ AZALDI'
+        ELSE '= AYNI'
+    END                                                    AS trend
+FROM combined
+ORDER BY ABS(cnt_today - cnt_yesterday) DESC;
+
+
+
+WITH last_hour AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_last_hour
+    FROM txn_acquirer
+    WHERE insert_date >= sysdate - 2/24
+      AND insert_date <  sysdate - 1/24
+    GROUP BY response_code
+),
+current_hour AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_current_hour
+    FROM txn_acquirer
+    WHERE insert_date >= sysdate - 1/24
+      AND insert_date <  sysdate
+    GROUP BY response_code
+),
+combined AS (
+    SELECT
+        COALESCE(c.response_code, l.response_code) AS response_code,
+        NVL(c.cnt_current_hour, 0)                 AS cnt_current_hour,
+        NVL(l.cnt_last_hour,    0)                 AS cnt_last_hour
+    FROM current_hour c
+    FULL OUTER JOIN last_hour l
+        ON c.response_code = l.response_code
+)
+SELECT
+    response_code,
+    cnt_current_hour,
+    cnt_last_hour,
+    (cnt_current_hour - cnt_last_hour)                          AS fark,
+    CASE
+        WHEN cnt_last_hour = 0 THEN NULL
+        ELSE ROUND(
+            (cnt_current_hour - cnt_last_hour) / cnt_last_hour * 100,
+            2
+        )
+    END                                                          AS degisim_yuzde,
+    CASE
+        WHEN cnt_current_hour > cnt_last_hour THEN '↑ ARTTI'
+        WHEN cnt_current_hour < cnt_last_hour THEN '↓ AZALDI'
+        ELSE '= AYNI'
+    END                                                          AS trend
+FROM combined
+ORDER BY ABS(cnt_current_hour - cnt_last_hour) DESC;
+
+
+
+
+
+WITH two_hours_ago AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_two_hours_ago
+    FROM txn_acquirer
+    WHERE insert_date >= sysdate - 3/24
+      AND insert_date <  sysdate - 2/24
+    GROUP BY response_code
+),
+one_hour_ago AS (
+    SELECT
+        response_code,
+        COUNT(*) AS cnt_one_hour_ago
+    FROM txn_acquirer
+    WHERE insert_date >= sysdate - 2/24
+      AND insert_date <  sysdate - 1/24
+    GROUP BY response_code
+),
+combined AS (
+    SELECT
+        COALESCE(o.response_code, t.response_code) AS response_code,
+        NVL(o.cnt_one_hour_ago, 0)                 AS cnt_one_hour_ago,
+        NVL(t.cnt_two_hours_ago, 0)                AS cnt_two_hours_ago
+    FROM one_hour_ago o
+    FULL OUTER JOIN two_hours_ago t
+        ON o.response_code = t.response_code
+)
+SELECT
+    response_code,
+    cnt_one_hour_ago,
+    cnt_two_hours_ago,
+    (cnt_one_hour_ago - cnt_two_hours_ago)                            AS fark,
+    CASE
+        WHEN cnt_two_hours_ago = 0 THEN NULL
+        ELSE ROUND(
+            (cnt_one_hour_ago - cnt_two_hours_ago) / cnt_two_hours_ago * 100,
+            2
+        )
+    END                                                                AS degisim_yuzde,
+    CASE
+        WHEN cnt_one_hour_ago > cnt_two_hours_ago THEN '↑ ARTTI'
+        WHEN cnt_one_hour_ago < cnt_two_hours_ago THEN '↓ AZALDI'
+        ELSE '= AYNI'
+    END                                                                AS trend
+FROM combined
+ORDER BY ABS(cnt_one_hour_ago - cnt_two_hours_ago) DESC;
+
+
