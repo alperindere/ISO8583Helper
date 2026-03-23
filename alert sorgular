@@ -1,4 +1,4 @@
-WITH this_week AS (
+ WITH this_week AS (
     SELECT
         response_code,
         COUNT(*) AS cnt_this_week
@@ -193,5 +193,59 @@ SELECT
     END                                                                AS trend
 FROM combined
 ORDER BY ABS(cnt_one_hour_ago - cnt_two_hours_ago) DESC;
+
+
+
+
+SELECT
+    COALESCE(p.response_code, c.response_code)  AS response_code,
+    NVL(p.cnt_prev, 0)                          AS cnt_gecen_hafta,
+    NVL(c.cnt_curr, 0)                          AS cnt_bu_hafta,
+    (NVL(c.cnt_curr, 0) - NVL(p.cnt_prev, 0))  AS fark,
+    CASE
+        WHEN NVL(p.cnt_prev, 0) = 0 THEN NULL
+        ELSE ROUND(
+            (NVL(c.cnt_curr, 0) - NVL(p.cnt_prev, 0)) / p.cnt_prev * 100,
+            2
+        )
+    END                                          AS degisim_yuzde,
+    CASE
+        WHEN c.response_code IS NULL THEN 'KAYBOLDU ❌'
+        WHEN p.response_code IS NULL THEN 'YENİ ÇIKTI 🆕'
+        WHEN c.cnt_curr > p.cnt_prev  THEN '↑ ARTTI'
+        WHEN c.cnt_curr < p.cnt_prev  THEN '↓ AZALDI'
+        ELSE '= AYNI'
+    END                                          AS durum,
+    CASE
+        WHEN c.response_code IS NULL THEN
+            (SELECT MAX(insert_date)
+             FROM txn_acquirer
+             WHERE response_code = p.response_code)
+        ELSE NULL
+    END                                          AS son_gorulme_zamani
+FROM
+    (
+        -- Geçen haftanın aynı günü
+        SELECT response_code, COUNT(*) AS cnt_prev
+        FROM txn_acquirer
+        WHERE trunc(insert_date) = trunc(sysdate) - 7
+        GROUP BY response_code
+    ) p
+FULL OUTER JOIN
+    (
+        -- Bugün
+        SELECT response_code, COUNT(*) AS cnt_curr
+        FROM txn_acquirer
+        WHERE trunc(insert_date) = trunc(sysdate)
+        GROUP BY response_code
+    ) c
+    ON p.response_code = c.response_code
+ORDER BY
+    CASE
+        WHEN c.response_code IS NULL THEN 1  -- önce kaybolanlar
+        WHEN p.response_code IS NULL THEN 2  -- sonra yeni çıkanlar
+        ELSE 3
+    END,
+    ABS(NVL(c.cnt_curr, 0) - NVL(p.cnt_prev, 0)) DESC;
 
 
