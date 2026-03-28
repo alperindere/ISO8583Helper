@@ -96,4 +96,108 @@ private static void SetFieldLengthsVIS()
 
     // ── 066-070 : Settlement ─────────────────────────────────────────────
     ISOHelper.FieldLengths[66]  = "2";      // BCD,2
-    ISOHelper.​​​​​​​​​​​​​​​​
+    ISOHelper.FieldLengths[67]  = "2";      // BCD,2
+    ISOHelper.FieldLengths[68]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[69]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[70]  = "3";      // BCD,3
+
+    // ── 071-080 : Message Number / Counters ──────────────────────────────
+    ISOHelper.FieldLengths[71]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[72]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[73]  = "6";      // BCD,6
+    ISOHelper.FieldLengths[74]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[75]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[76]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[77]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[78]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[79]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[80]  = "10";     // BCD,10
+
+    // ── 081-090 : Counters / Reconciliation ──────────────────────────────
+    ISOHelper.FieldLengths[81]  = "10";     // BCD,10
+    ISOHelper.FieldLengths[82]  = "12";     // BCD,12
+    ISOHelper.FieldLengths[83]  = "12";     // BCD,12
+    ISOHelper.FieldLengths[84]  = "12";     // BCD,12
+    ISOHelper.FieldLengths[85]  = "12";     // BCD,12
+    ISOHelper.FieldLengths[86]  = "16";     // BCD,16
+    ISOHelper.FieldLengths[87]  = "16";     // BCD,16
+    ISOHelper.FieldLengths[88]  = "16";     // BCD,16
+    ISOHelper.FieldLengths[89]  = "16";     // BCD,16
+    ISOHelper.FieldLengths[90]  = "42";     // BCD,42
+
+    // ── 091-095 : Auth / Fee ─────────────────────────────────────────────
+    ISOHelper.FieldLengths[91]  = "1";      // STR,1
+    ISOHelper.FieldLengths[92]  = "2";      // STR,2
+    ISOHelper.FieldLengths[93]  = "5";      // STR,5
+    ISOHelper.FieldLengths[94]  = "7";      // STR,7
+    ISOHelper.FieldLengths[95]  = "42";     // STR,42
+
+    // ── 096-100 : Key / Amount ───────────────────────────────────────────
+    ISOHelper.FieldLengths[96]  = "16";     // BIN,16
+    ISOHelper.FieldLengths[97]  = "17";     // STR,17
+    ISOHelper.FieldLengths[98]  = "25";     // STR,25
+    ISOHelper.FieldLengths[99]  = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[100] = "L2";     // BCD,OFA_2LV
+
+    // ── 101-110 : Private Use ────────────────────────────────────────────
+    ISOHelper.FieldLengths[101] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[102] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[103] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[104] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[105] = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[106] = "32";     // BIN,32
+    ISOHelper.FieldLengths[107] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[108] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[109] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[110] = "L2";     // STR,OFA_2LV
+
+    // ── 111-120 : Private Use ────────────────────────────────────────────
+    ISOHelper.FieldLengths[111] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[112] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[113] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[114] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[115] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[116] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[117] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[118] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[119] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[120] = "L2";     // STR,OFA_2LV
+
+    // ── 121-130 : Private / Bitmap ───────────────────────────────────────
+    ISOHelper.FieldLengths[121] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[122] = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[123] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[124] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[125] = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[126] = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[127] = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[128] = "16";     // BIN,16  (MAC2)
+    ISOHelper.FieldLengths[129] = "0";      // BIN,0
+    ISOHelper.FieldLengths[130] = "6";      // HEX,6
+
+    // ── 131-140 : HEX / Extended ─────────────────────────────────────────
+    ISOHelper.FieldLengths[131] = "10";     // HEX,10
+    ISOHelper.FieldLengths[132] = "8";      // HEX,8
+    ISOHelper.FieldLengths[133] = "8";      // STR,8
+    ISOHelper.FieldLengths[134] = "4";      // HEX,4
+    ISOHelper.FieldLengths[135] = "4";      // HEX,4
+    ISOHelper.FieldLengths[136] = "16";     // HEX,16
+    ISOHelper.FieldLengths[137] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[138] = "20";     // HEX,20
+    ISOHelper.FieldLengths[139] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[140] = "L2";     // HEX,OFA_2LV
+
+    // ── 141-152 : Extended / Proprietary ─────────────────────────────────
+    ISOHelper.FieldLengths[141] = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[142] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[143] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[144] = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[145] = "2";      // BCD,2
+    ISOHelper.FieldLengths[146] = "3";      // BCD,3
+    ISOHelper.FieldLengths[147] = "6";      // BCD,6
+    ISOHelper.FieldLengths[148] = "12";     // BCD,12
+    ISOHelper.FieldLengths[149] = "3";      // BCD,3
+    ISOHelper.FieldLengths[150] = "12";     // BCD,12
+    ISOHelper.FieldLengths[151] = "16";     // BIN,16
+    ISOHelper.FieldLengths[152] = "24";     // BIN,24
+}
