@@ -1,0 +1,99 @@
+private static void SetFieldLengthsVIS()
+{
+    ISOHelper.FieldLengths = new string[153];
+
+    // ── MTI ─────────────────────────────────────────────────────────────
+    ISOHelper.FieldLengths[0]   = "4";
+
+    // ── 001-005 : Bitmap / PAN ──────────────────────────────────────────
+    ISOHelper.FieldLengths[1]   = "8";      // BIN,8
+    ISOHelper.FieldLengths[2]   = "L2";     // BCD,OFA_2LV
+    ISOHelper.FieldLengths[3]   = "6";      // BCD,6
+    ISOHelper.FieldLengths[4]   = "12";     // BCD,12
+    ISOHelper.FieldLengths[5]   = "12";     // BCD,12
+
+    // ── 006-010 : Amount / Date / Time ──────────────────────────────────
+    ISOHelper.FieldLengths[6]   = "12";     // BCD,12
+    ISOHelper.FieldLengths[7]   = "10";     // BCD,10
+    ISOHelper.FieldLengths[8]   = "8";      // BCD,8
+    ISOHelper.FieldLengths[9]   = "8";      // BCD,8
+    ISOHelper.FieldLengths[10]  = "8";      // BCD,8
+
+    // ── 011-015 : Trace / Date / Time ───────────────────────────────────
+    ISOHelper.FieldLengths[11]  = "6";      // BCD,6
+    ISOHelper.FieldLengths[12]  = "6";      // BCD,6
+    ISOHelper.FieldLengths[13]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[14]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[15]  = "4";      // BCD,4
+
+    // ── 016-020 : Date / Country ─────────────────────────────────────────
+    ISOHelper.FieldLengths[16]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[17]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[18]  = "4";      // BCD,4
+    ISOHelper.FieldLengths[19]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[20]  = "3";      // BCD,3
+
+    // ── 021-025 : POS / Network ──────────────────────────────────────────
+    ISOHelper.FieldLengths[21]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[22]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[23]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[24]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[25]  = "2";      // BCD,2
+
+    // ── 026-030 : Fee / Amount ───────────────────────────────────────────
+    ISOHelper.FieldLengths[26]  = "2";      // BCD,2
+    ISOHelper.FieldLengths[27]  = "2";      // BCD,2
+    ISOHelper.FieldLengths[28]  = "9";      // STR,9
+    ISOHelper.FieldLengths[29]  = "9";      // STR,9
+    ISOHelper.FieldLengths[30]  = "9";      // STR,9
+
+    // ── 031-035 : Acquirer / Forwarding / Track ──────────────────────────
+    ISOHelper.FieldLengths[31]  = "9";      // STR,9
+    ISOHelper.FieldLengths[32]  = "L2";     // BCD,OFA_2LV
+    ISOHelper.FieldLengths[33]  = "L2";     // BCD,OFA_2LV
+    ISOHelper.FieldLengths[34]  = "L3";     // BIN,OFA_3LV
+    ISOHelper.FieldLengths[35]  = "L2";     // BCD,OFA_2LV
+
+    // ── 036-040 : Track / Retrieval / Auth ───────────────────────────────
+    ISOHelper.FieldLengths[36]  = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[37]  = "12";     // STR,12
+    ISOHelper.FieldLengths[38]  = "6";      // STR,6
+    ISOHelper.FieldLengths[39]  = "2";      // STR,2
+    ISOHelper.FieldLengths[40]  = "3";      // STR,3
+
+    // ── 041-045 : Terminal / Merchant ────────────────────────────────────
+    ISOHelper.FieldLengths[41]  = "8";      // STR,8
+    ISOHelper.FieldLengths[42]  = "15";     // STR,15
+    ISOHelper.FieldLengths[43]  = "40";     // STR,40
+    ISOHelper.FieldLengths[44]  = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[45]  = "L2";     // STR,OFA_2LV
+
+    // ── 046-050 : Additional Data ────────────────────────────────────────
+    ISOHelper.FieldLengths[46]  = "L2";     // STR,OFA_2LV
+    ISOHelper.FieldLengths[47]  = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[48]  = "L2";     // BCD,OFA_2LV
+    ISOHelper.FieldLengths[49]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[50]  = "3";      // BCD,3
+
+    // ── 051-055 : Currency / PIN / Security ──────────────────────────────
+    ISOHelper.FieldLengths[51]  = "3";      // BCD,3
+    ISOHelper.FieldLengths[52]  = "16";     // HEX,16
+    ISOHelper.FieldLengths[53]  = "16";     // BCD,16
+    ISOHelper.FieldLengths[54]  = "16";     // BCD,16
+    ISOHelper.FieldLengths[55]  = "L2";     // STR,OFA_2LV
+
+    // ── 056-065 : ICC / Bitmap2 ──────────────────────────────────────────
+    ISOHelper.FieldLengths[56]  = "L2";     // BIN,OFA_2LV
+    ISOHelper.FieldLengths[57]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[58]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[59]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[60]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[61]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[62]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[63]  = "L2";     // HEX,OFA_2LV
+    ISOHelper.FieldLengths[64]  = "16";     // BIN,16  (MAC)
+    ISOHelper.FieldLengths[65]  = "0";      // BIN,0   /* BM2 placeholder */
+
+    // ── 066-070 : Settlement ─────────────────────────────────────────────
+    ISOHelper.FieldLengths[66]  = "2";      // BCD,2
+    ISOHelper.​​​​​​​​​​​​​​​​
