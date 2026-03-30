@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISO 8583 – Visa Flow · Issuer Perspective</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+:root {
+–bg: #0b0f1a;
+–surface: #131929;
+–border: #1e2d45;
+–visa-gold: #f5a623;
+–acquirer: #94a3b8;
+–issuer: #00e5a0;
+–visa: #f5a623;
+–online: #4fc3f7;
+–clearing: #a78bfa;
+–text: #e2e8f0;
+–muted: #64748b;
+–you: #00e5a0;
+}
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘IBM Plex Sans’, sans-serif;
+min-height: 100vh;
+padding: 32px 24px;
+}
+
+header {
+text-align: center;
+margin-bottom: 40px;
+}
+
+header h1 {
+font-size: 1.4rem;
+font-weight: 700;
+letter-spacing: 0.08em;
+text-transform: uppercase;
+color: var(–issuer);
+}
+
+header p {
+font-size: 0.78rem;
+color: var(–muted);
+margin-top: 6px;
+letter-spacing: 0.04em;
+font-family: ‘IBM Plex Mono’, monospace;
+}
+
+.you-badge {
+display: inline-block;
+background: rgba(0,229,160,0.15);
+border: 1px solid rgba(0,229,160,0.4);
+color: var(–issuer);
+font-size: 0.6rem;
+font-weight: 700;
+padding: 2px 10px;
+border-radius: 20px;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+margin-top: 8px;
+font-family: ‘IBM Plex Mono’, monospace;
+}
+
+/* ── ACTORS ROW ── */
+.actors {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+gap: 12px;
+max-width: 900px;
+margin: 0 auto 8px;
+}
+
+.actor {
+border-radius: 8px;
+padding: 14px 12px 12px;
+text-align: center;
+border: 1px solid;
+position: relative;
+}
+
+.actor.acq  { border-color: #334155; background: rgba(148,163,184,0.04); opacity: 0.7; }
+.actor.visa { border-color: var(–visa); background: rgba(245,166,35,0.06); }
+.actor.iss  {
+border-color: var(–issuer);
+background: rgba(0,229,160,0.08);
+box-shadow: 0 0 20px rgba(0,229,160,0.12);
+}
+
+.actor-icon { font-size: 1.5rem; margin-bottom: 4px; }
+.actor-title {
+font-size: 0.7rem; font-weight: 700;
+letter-spacing: 0.1em; text-transform: uppercase;
+}
+.actor.acq  .actor-title { color: var(–acquirer); }
+.actor.visa .actor-title { color: var(–visa); }
+.actor.iss  .actor-title { color: var(–issuer); }
+
+.actor-sub {
+font-size: 0.64rem; color: var(–muted);
+margin-top: 2px; font-family: ‘IBM Plex Mono’, monospace;
+}
+
+.you-tag {
+position: absolute;
+top: -10px; left: 50%; transform: translateX(-50%);
+background: var(–issuer);
+color: #000;
+font-size: 0.55rem;
+font-weight: 700;
+padding: 2px 8px;
+border-radius: 10px;
+font-family: ‘IBM Plex Mono’, monospace;
+letter-spacing: 0.08em;
+white-space: nowrap;
+}
+
+/* ── PHASE DIVIDER ── */
+.phase-label {
+max-width: 900px;
+margin: 20px auto 6px;
+display: flex;
+align-items: center;
+gap: 10px;
+}
+.phase-label span {
+font-size: 0.65rem; font-weight: 700;
+letter-spacing: 0.12em; text-transform: uppercase;
+padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+}
+.phase-label.online span { background: rgba(79,195,247,0.15); color: var(–online); border: 1px solid rgba(79,195,247,0.3); }
+.phase-label.clear  span { background: rgba(167,139,250,0.15); color: var(–clearing); border: 1px solid rgba(167,139,250,0.3); }
+.phase-label::after { content:’’; flex:1; height:1px; background: var(–border); }
+
+/* ── FLOW ── */
+.flow {
+max-width: 900px;
+margin: 0 auto;
+display: flex;
+flex-direction: column;
+}
+
+.msg-row {
+display: grid;
+grid-template-columns: 1fr 1fr 1fr;
+position: relative;
+min-height: 52px;
+align-items: center;
+}
+
+/* Lane lines */
+.msg-row::before {
+content:’’; position:absolute;
+top:0; bottom:0;
+left: calc(16.666% - 1px);
+width:1px; background: var(–border); z-index:0;
+}
+.msg-row::after {
+content:’’; position:absolute;
+top:0; bottom:0;
+right: calc(16.666% - 1px);
+width:1px; background: rgba(0,229,160,0.25); z-index:0;
+}
+
+.msg {
+grid-column: 1 / 4;
+display: flex;
+align-items: center;
+position: relative;
+z-index: 1;
+padding: 0 4px;
+}
+
+.msg.visa-to-iss  { justify-content: flex-start;  padding-left: calc(50% + 6px); padding-right: calc(16.666% + 6px); }
+.msg.iss-to-visa  { justify-content: flex-end;    padding-right: calc(50% + 6px); padding-left: calc(16.666% + 6px); }
+.msg.acq-to-visa  { justify-content: flex-start;  padding-left: calc(16.666% + 6px); padding-right: calc(50% + 6px); }
+.msg.visa-to-acq  { justify-content: flex-end;    padding-right: calc(16.666% + 6px); padding-left: calc(50% + 6px); }
+.msg.full         { justify-content: center; }
+
+.arrow-line {
+display: flex; align-items: center;
+width: 100%;
+}
+.arrow-body { flex:1; height:2px; }
+
+.arrowhead-r::after  { content:‘▶’; font-size:9px; }
+.arrowhead-l::before { content:‘◀’; font-size:9px; }
+
+/* chips */
+.chip {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 0.6rem; font-weight: 600;
+padding: 4px 10px; border-radius: 4px;
+white-space: nowrap; line-height: 1.4;
+text-align: center; min-width: 140px;
+position: relative; z-index: 2;
+}
+
+.chip.online  { background: rgba(79,195,247,0.12);  border: 1px solid rgba(79,195,247,0.35); color: var(–online); }
+.chip.resp    { background: rgba(0,229,160,0.12);   border: 1px solid rgba(0,229,160,0.4);   color: var(–issuer); }
+.chip.clear   { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.35); color: var(–clearing); }
+.chip.settle  { background: rgba(245,166,35,0.10);  border: 1px solid rgba(245,166,35,0.3);  color: var(–visa-gold); }
+.chip.ext     { background: rgba(148,163,184,0.08); border: 1px solid rgba(148,163,184,0.2); color: var(–acquirer); }
+
+/* YOU highlight chip */
+.chip.you-action {
+background: rgba(0,229,160,0.18);
+border: 1.5px solid rgba(0,229,160,0.6);
+color: var(–issuer);
+box-shadow: 0 0 10px rgba(0,229,160,0.15);
+}
+
+.chip .mti  { display:block; font-size:0.68rem; font-weight:700; margin-bottom:1px; }
+.chip .desc { font-size:0.55rem; opacity:0.8; font-weight:400; }
+
+/* action block — what YOU do */
+.action-block {
+max-width: 900px;
+margin: 4px auto;
+padding: 8px 12px 8px calc(66.666% + 6px);
+border-left: 2px solid rgba(0,229,160,0.3);
+background: rgba(0,229,160,0.04);
+border-radius: 0 6px 6px 0;
+}
+
+.action-block h5 {
+font-size: 0.6rem; font-weight: 700;
+color: var(–issuer); text-transform: uppercase;
+letter-spacing: 0.08em; margin-bottom: 4px;
+font-family: ‘IBM Plex Mono’, monospace;
+}
+
+.action-block ul {
+list-style: none; padding: 0;
+display: flex; flex-wrap: wrap; gap: 4px;
+}
+
+.action-block ul li {
+font-size: 0.58rem;
+background: rgba(0,229,160,0.08);
+border: 1px solid rgba(0,229,160,0.2);
+color: var(–text);
+padding: 2px 7px; border-radius: 3px;
+font-family: ‘IBM Plex Mono’, monospace;
+}
+
+.action-block ul li b { color: var(–issuer); }
+
+/* fields row */
+.fields-row {
+max-width: 900px; margin: 0 auto;
+padding: 4px 0 4px calc(50% + 6px);
+display: flex; flex-wrap: wrap; gap: 4px;
+}
+.fields-row.left { padding-left: calc(16.666% + 6px); padding-right: 0; }
+
+.field-tag {
+font-family: ‘IBM Plex Mono’, monospace;
+font-size: 0.55rem;
+padding: 2px 6px; border-radius: 3px;
+background: rgba(255,255,255,0.04);
+border: 1px solid rgba(255,255,255,0.08);
+color: var(–muted);
+}
+.field-tag b { color: var(–text); font-weight:600; }
+.field-tag.you { border-color: rgba(0,229,160,0.3); color: var(–issuer); background: rgba(0,229,160,0.06); }
+.field-tag.you b { color: var(–issuer); }
+
+/* step number */
+.step-num {
+display: inline-flex; align-items: center; justify-content: center;
+width:18px; height:18px; border-radius:50%;
+font-size:0.6rem; font-weight:700;
+font-family:‘IBM Plex Mono’, monospace;
+flex-shrink:0; margin-right:6px;
+}
+.step-num.online { background:rgba(79,195,247,0.2); color:var(–online); border:1px solid rgba(79,195,247,0.4); }
+.step-num.clear  { background:rgba(167,139,250,0.2); color:var(–clearing); border:1px solid rgba(167,139,250,0.4); }
+.step-num.you    { background:rgba(0,229,160,0.25); color:var(–issuer); border:1px solid rgba(0,229,160,0.5); }
+
+.msg-wrapper { display:flex; align-items:center; gap:6px; }
+
+/* lane top */
+.lane-top { max-width:900px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr 1fr; height:8px; }
+.lane-top div { border-left:1px solid var(–border); }
+.lane-top div:last-child { border-left:none; border-right: 1px solid rgba(0,229,160,0.25); }
+
+/* settle box */
+.settle-box {
+max-width:900px; margin:12px auto 0;
+border:1px solid rgba(0,229,160,0.25);
+border-radius:8px;
+background:rgba(0,229,160,0.04);
+padding:14px 18px;
+display:grid; grid-template-columns:1fr 1fr; gap:10px;
+}
+.settle-box h4 {
+grid-column:1/3; font-size:0.65rem; font-weight:700;
+text-transform:uppercase; letter-spacing:0.1em;
+color:var(–issuer); margin-bottom:4px;
+}
+.settle-item {
+font-size:0.62rem; color:var(–muted);
+font-family:‘IBM Plex Mono’, monospace; line-height:1.6;
+}
+.settle-item b { color:var(–text); }
+.settle-item.highlight b { color:var(–issuer); }
+
+footer {
+max-width:900px; margin:24px auto 0;
+font-size:0.6rem; color:var(–muted);
+text-align:center; font-family:‘IBM Plex Mono’, monospace;
+border-top:1px solid var(–border); padding-top:12px;
+}
+
+.badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:0.55rem; font-family:‘IBM Plex Mono’,monospace; font-weight:700; margin-left:5px; vertical-align:middle; }
+.badge.req { background:rgba(79,195,247,0.2); color:var(–online); }
+.badge.rsp { background:rgba(0,229,160,0.2);  color:var(–issuer); }
+.badge.clr { background:rgba(167,139,250,0.2); color:var(–clearing); }
+</style>
+
+</head>
+<body>
+
+<header>
+  <h1>ISO 8583 · Visa Flow — Issuer Perspektifi</h1>
+  <p>Acquirer Bank → VisaNet → <strong style="color:var(--issuer)">Benim Bankam (Issuer)</strong> &nbsp;|&nbsp; Online Auth + BASE II Clearing + Settlement</p>
+  <div class="you-badge">🏦 SİZ = ISSUER BANK</div>
+</header>
+
+<!-- ACTORS -->
+
+<div class="actors">
+  <div class="actor acq">
+    <div class="actor-icon">🏪</div>
+    <div class="actor-title">Acquirer Bank</div>
+    <div class="actor-sub">POS/ATM Sahibi<br>Üye İşyeri Bankası</div>
+  </div>
+  <div class="actor visa">
+    <div class="actor-icon">⚡</div>
+    <div class="actor-title">VisaNet</div>
+    <div class="actor-sub">V.I.P. · BASE II · VSS<br>Routing · FX · Clearing</div>
+  </div>
+  <div class="actor iss">
+    <div class="you-tag">👈 SİZ</div>
+    <div class="actor-icon">🏦</div>
+    <div class="actor-title">Issuer Bank</div>
+    <div class="actor-sub">Kart Sahibi Bankası<br>Auth · Limit · Clearing</div>
+  </div>
+</div>
+
+<div class="lane-top"><div></div><div></div><div></div></div>
+
+<!-- ═══════════════════════════════════════
+     PHASE 1 — ONLINE AUTHORIZATION
+════════════════════════════════════════ -->
+
+<div class="phase-label online">
+  <span>① ONLINE AUTHORIZATION (Real-time · ms seviyesi)</span>
+</div>
+
+<div class="flow">
+
+  <!-- STEP 1: Acquirer → Visa (arka planda) -->
+
+  <div class="msg-row" style="opacity:0.55">
+    <div class="msg acq-to-visa">
+      <div class="msg-wrapper">
+        <span class="step-num online" style="font-size:0.5rem">~</span>
+        <div class="chip ext">
+          <span class="mti">0100 — Auth Request</span>
+          <span class="desc">Acquirer → VisaNet (sizin görmediğiniz kısım)</span>
+        </div>
+      </div>
+      <div class="arrow-line" style="color:#475569; flex:1; margin-left:8px;">
+        <div class="arrow-body" style="background:linear-gradient(to right, rgba(71,85,105,0.1) 0%, #475569 100%);"></div>
+        <span class="arrowhead-r" style="color:#475569"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Visa → Issuer (SİZE GELEN) -->
+
+  <div class="msg-row">
+    <div class="msg visa-to-iss">
+      <div class="arrow-line" style="color:var(--online); flex:1; margin-right:8px;">
+        <span class="arrowhead-l" style="color:var(--online)"></span>
+        <div class="arrow-body" style="background:linear-gradient(to left, rgba(79,195,247,0.1) 0%, var(--online) 100%);"></div>
+      </div>
+      <div class="msg-wrapper">
+        <span class="step-num online">1</span>
+        <div class="chip online">
+          <span class="mti">0100 — Auth Request (GELİYOR)</span>
+          <span class="desc">VisaNet → Sizin Sistemiz ↓</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fields-row">
+    <span class="field-tag"><b>F2</b> PAN</span>
+    <span class="field-tag"><b>F3</b> Proc Code (000000=Purchase)</span>
+    <span class="field-tag"><b>F4</b> Transaction Amt</span>
+    <span class="field-tag"><b>F7</b> Trans Date/Time</span>
+    <span class="field-tag"><b>F11</b> STAN</span>
+    <span class="field-tag"><b>F12</b> Local Time</span>
+    <span class="field-tag"><b>F14</b> Card Expiry</span>
+    <span class="field-tag"><b>F22</b> POS Entry Mode</span>
+    <span class="field-tag"><b>F41</b> Terminal ID</span>
+    <span class="field-tag"><b>F42</b> Merchant ID</span>
+    <span class="field-tag"><b>F43</b> Merchant Name/Loc</span>
+    <span class="field-tag"><b>F49</b> Trans Currency</span>
+    <span class="field-tag"><b>F52</b> PIN Data (varsa)</span>
+    <span class="field-tag"><b>F55</b> EMV/ICC Data (Chip txn)</span>
+    <span class="field-tag"><b>F60</b> Network Data (VisaNet ekler)</span>
+  </div>
+
+  <!-- ACTION: SİZİN YAPTIĞINIZ -->
+
+  <div class="action-block">
+    <h5>⚙ Sizin Sistemizin Yaptığı (Auth Engine)</h5>
+    <ul>
+      <li>✅ <b>PAN</b> kart hesap eşleştirme</li>
+      <li>✅ <b>CVV/CVV2</b> doğrulama</li>
+      <li>✅ <b>Limit</b> kontrolü (F4 ≤ kullanılabilir limit)</li>
+      <li>✅ <b>Kart durumu</b> (aktif/bloke/expired)</li>
+      <li>✅ <b>PIN</b> doğrulama (F52 varsa)</li>
+      <li>✅ <b>EMV ARQC</b> kriptogram doğrulama (F55)</li>
+      <li>✅ <b>Fraud/Risk</b> kontrolü</li>
+      <li>✅ <b>3DS</b> (e-commerce ise)</li>
+    </ul>
+  </div>
+
+  <!-- STEP 3: Issuer → Visa (SİZİN GÖNDERDİĞİNİZ) -->
+
+  <div class="msg-row">
+    <div class="msg iss-to-visa">
+      <div class="msg-wrapper">
+        <span class="step-num you">2</span>
+        <div class="chip you-action">
+          <span class="mti">0110 — Auth Response (GÖNDERİYORSUNUZ)</span>
+          <span class="desc">Sizin Sistemiz → VisaNet ↑</span>
+        </div>
+      </div>
+      <div class="arrow-line" style="color:var(--issuer); flex:1; margin-left:8px;">
+        <div class="arrow-body" style="background:linear-gradient(to right, rgba(0,229,160,0.1) 0%, var(--issuer) 100%);"></div>
+        <span class="arrowhead-r" style="color:var(--issuer)"></span>
+      </div>
+    </div>
+  </div>
+  <div class="fields-row">
+    <span class="field-tag you"><b>F39</b> Response Code (00=Approved / 51=NSF / 14=Invalid Card…)</span>
+    <span class="field-tag you"><b>F38</b> Auth ID / Approval Code (6 karakter)</span>
+    <span class="field-tag you"><b>F55</b> ARPC — EMV Auth Response Cryptogram</span>
+    <span class="field-tag"><b>F44</b> Addl Response Data (opsiyonel)</span>
+    <span class="field-tag"><b>F54</b> Addl Amounts (opsiyonel)</span>
+  </div>
+
+  <!-- STEP 4: Visa → Acquirer (arka planda) -->
+
+  <div class="msg-row" style="opacity:0.55">
+    <div class="msg visa-to-acq">
+      <div class="arrow-line" style="color:#475569; flex:1; margin-right:8px;">
+        <span class="arrowhead-l" style="color:#475569"></span>
+        <div class="arrow-body" style="background:linear-gradient(to left, rgba(71,85,105,0.1) 0%, #475569 100%);"></div>
+      </div>
+      <div class="msg-wrapper">
+        <span class="step-num online" style="font-size:0.5rem">~</span>
+        <div class="chip ext">
+          <span class="mti">0110 — Auth Response Fwd</span>
+          <span class="desc">VisaNet → Acquirer (sizin görmediğiniz)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5: 0120 Advice (opsiyonel) -->
+
+  <div class="msg-row" style="opacity:0.65">
+    <div class="msg visa-to-iss">
+      <div class="arrow-line" style="color:var(--online); flex:1; margin-right:8px;">
+        <span class="arrowhead-l" style="color:var(--online); opacity:0.5"></span>
+        <div class="arrow-body" style="background:linear-gradient(to left, rgba(79,195,247,0.05) 0%, rgba(79,195,247,0.5) 100%);"></div>
+      </div>
+      <div class="msg-wrapper">
+        <span class="step-num online" style="font-size:0.5rem">?</span>
+        <div class="chip online" style="border-style:dashed; opacity:0.8">
+          <span class="mti">0120 — Auth Advice (Opsiyonel)</span>
+          <span class="desc">VisaNet → Sizin Sistemiz (offline chip onayı)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     PHASE 2 — CLEARING (BASE II)
+════════════════════════════════════════ -->
+
+<div class="phase-label clear">
+  <span>② BATCH CLEARING — BASE II (T+0 veya T+1)</span>
+</div>
+
+<div class="flow">
+
+  <!-- Acquirer → VisaNet (arka planda) -->
+
+  <div class="msg-row" style="opacity:0.55">
+    <div class="msg acq-to-visa">
+      <div class="msg-wrapper">
+        <span class="step-num clear" style="font-size:0.5rem">~</span>
+        <div class="chip ext">
+          <span class="mti">0220 TC05 — Presentment</span>
+          <span class="desc">Acquirer batch → BASE II (sizin görmediğiniz)</span>
+        </div>
+      </div>
+      <div class="arrow-line" style="color:#475569; flex:1; margin-left:8px;">
+        <div class="arrow-body" style="background:linear-gradient(to right, rgba(71,85,105,0.1) 0%, #475569 100%);"></div>
+        <span class="arrowhead-r" style="color:#475569"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- VisaNet Processing -->
+
+  <div class="msg-row">
+    <div class="msg full">
+      <div class="chip settle" style="min-width:320px">
+        <span class="mti">⚙ BASE II Processing — VisaNet</span>
+        <span class="desc">Interchange Fee hesaplama · FX dönüşüm · Net position · Billing Currency</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visa → Issuer (SIZE GELEN PRESENTMENT) -->
+
+  <div class="msg-row">
+    <div class="msg visa-to-iss">
+      <div class="arrow-line" style="color:var(--clearing); flex:1; margin-right:8px;">
+        <span class="arrowhead-l" style="color:var(--clearing)"></span>
+        <div class="arrow-body" style="background:linear-gradient(to left, rgba(167,139,250,0.1) 0%, var(--clearing) 100%);"></div>
+      </div>
+      <div class="msg-wrapper">
+        <span class="step-num clear">3</span>
+        <div class="chip clear">
+          <span class="mti">0220 TC05 — Presentment (GELİYOR)</span>
+          <span class="desc">BASE II → Sizin Sistemiz (billing amt ile)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fields-row">
+    <span class="field-tag"><b>F2</b> PAN</span>
+    <span class="field-tag"><b>F4</b> Transaction Amt</span>
+    <span class="field-tag you"><b>F6</b> Billing Amt (sizin para biriminiz)</span>
+    <span class="field-tag you"><b>F10</b> Conv Rate Billing (FX kuru)</span>
+    <span class="field-tag"><b>F38</b> Auth Code (online ile eşleşmeli)</span>
+    <span class="field-tag"><b>F43</b> Merchant Name/Loc</span>
+    <span class="field-tag you"><b>F104</b> Interchange Fee Amt</span>
+    <span class="field-tag"><b>F63</b> Addl Data / TC kodu</span>
+  </div>
+
+  <!-- ACTION: Sizin clearing işlemi -->
+
+  <div class="action-block">
+    <h5>⚙ Sizin Sistemizin Yaptığı (Clearing Engine)</h5>
+    <ul>
+      <li>✅ <b>Auth eşleştirme</b> F38 auth code ile online auth kaydını bul</li>
+      <li>✅ <b>Tutar kontrolü</b> F6 billing amt ≤ auth tutarı</li>
+      <li>✅ <b>Duplicate</b> kontrolü aynı işlem tekrar sunulmuş mu?</li>
+      <li>✅ <b>Kart hesabına</b> borç kayıt (posting)</li>
+      <li>✅ <b>Interchange fee</b> F104 muhasebe kaydı</li>
+      <li>✅ <b>FX</b> dönüşüm kaydı (F10 kuru ile)</li>
+    </ul>
+  </div>
+
+  <!-- Issuer → Visa ACK (SİZİN GÖNDERDİĞİNİZ) -->
+
+  <div class="msg-row">
+    <div class="msg iss-to-visa">
+      <div class="msg-wrapper">
+        <span class="step-num you">4</span>
+        <div class="chip you-action">
+          <span class="mti">0230 — Presentment Ack (GÖNDERİYORSUNUZ)</span>
+          <span class="desc">Sizin Sistemiz → BASE II (kabul / ret)</span>
+        </div>
+      </div>
+      <div class="arrow-line" style="color:var(--issuer); flex:1; margin-left:8px;">
+        <div class="arrow-body" style="background:linear-gradient(to right, rgba(0,229,160,0.1) 0%, var(--issuer) 100%);"></div>
+        <span class="arrowhead-r" style="color:var(--issuer)"></span>
+      </div>
+    </div>
+  </div>
+  <div class="fields-row">
+    <span class="field-tag you"><b>F39</b> 00 = Kabul / 77 = Ret (Chargeback başlatır)</span>
+    <span class="field-tag"><b>F38</b> Auth Code</span>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════
+     PHASE 3 — SETTLEMENT
+════════════════════════════════════════ -->
+
+<div class="phase-label clear" style="margin-top:16px">
+  <span>③ NET SETTLEMENT — VSS (T+1)</span>
+</div>
+
+<div class="settle-box">
+  <h4>💰 Issuer Net Position (Sizin Tarafınız)</h4>
+  <div class="settle-item highlight">
+    <b>Sizin Borcunuz (Visa'ya ödersiniz)</b><br>
+    = Σ Billing Amounts (tüm kart harcamaları)<br>
+    + Interchange Fee (Acquirer'a kanalın üzerinden)
+  </div>
+  <div class="settle-item highlight">
+    <b>Aldığınız (Kart Sahiplerinden)</b><br>
+    = Ekstre döneminde kart sahiplerinden tahsil<br>
+    = Billing currency üzerinden (F6 / F10)
+  </div>
+  <div class="settle-item">
+    <b>Interchange Fee Yönü</b><br>
+    Issuer → Acquirer (ticari karta göre değişir)<br>
+    TC33 dosyasıyla VSS hesaplar ve keser
+  </div>
+  <div class="settle-item">
+    <b>FX Kuru (Uluslararası İşlem)</b><br>
+    F10 Conv Rate Billing ile hesaplanır<br>
+    Visa FX spread'i ekler (~1%–1.5%)
+  </div>
+</div>
+
+<!-- LEGEND -->
+
+<div style="max-width:900px; margin:20px auto 0; display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+  <span style="font-size:0.6rem; color:var(--muted); margin-right:4px; font-family:'IBM Plex Mono',monospace;">LEGEND:</span>
+  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:rgba(0,229,160,0.4); margin-right:3px; vertical-align:middle;"></span>
+  <span style="font-size:0.6rem; color:var(--issuer); margin-right:12px">Sizin aksiyonunuz</span>
+  <span style="font-size:0.6rem; color:var(--muted); margin-right:8px">Soluk = Sizin görmediğiniz (Acquirer↔Visa arası)</span>
+  <span class="badge req">0100/0200</span><span style="font-size:0.6rem;color:var(--muted);margin-right:8px"> Request MTI</span>
+  <span class="badge rsp">0110/0210</span><span style="font-size:0.6rem;color:var(--muted);margin-right:8px"> Response MTI</span>
+  <span class="badge clr">0220/0230</span><span style="font-size:0.6rem;color:var(--muted)"> Advice/Clearing MTI</span>
+</div>
+
+<footer>
+  ISO 8583 Visa B2B Flow · Issuer Perspektifi · Online Auth + BASE II Clearing + VSS Settlement
+</footer>
+
+</body>
+</html>
