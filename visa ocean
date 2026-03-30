@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCEAN – Acquirer Flow · Visa</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+:root {
+–bg: #07090f;
+–bg2: #0d1117;
+–border: #161d2e;
+–border2: #1f2d45;
+–ocean-color: #0ea5e9;
+–visa-color: #f5a623;
+–ext-color: #94a3b8;
+–gate-color: #38bdf8;
+–decision: #fb923c;
+–online: #38bdf8;
+–resp: #34d399;
+–clear: #a78bfa;
+–you: #0ea5e9;
+–text: #e2e8f0;
+–muted: #475569;
+–dim: #334155;
+}
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+background: var(–bg);
+color: var(–text);
+font-family: ‘JetBrains Mono’, monospace;
+padding: 28px 20px 40px;
+min-width: 1100px;
+}
+
+/* HEADER */
+header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+max-width: 1200px;
+margin: 0 auto 32px;
+border-bottom: 1px solid var(–border2);
+padding-bottom: 16px;
+}
+header h1 {
+font-family: ‘Syne’, sans-serif;
+font-size: 1.5rem;
+font-weight: 800;
+color: var(–ocean-color);
+letter-spacing: 0.02em;
+}
+header p { font-size: 0.65rem; color: var(–muted); margin-top: 4px; }
+.role-badge {
+padding: 6px 14px;
+border-radius: 6px;
+font-size: 0.65rem;
+font-weight: 700;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+background: rgba(14,165,233,0.15);
+border: 1px solid rgba(14,165,233,0.4);
+color: var(–ocean-color);
+}
+
+/* LAYOUT: 3 main columns */
+.main-grid {
+display: grid;
+grid-template-columns: 200px 1fr 180px;
+gap: 0;
+max-width: 1200px;
+margin: 0 auto;
+align-items: start;
+}
+
+/* ── COLUMN HEADERS ── */
+.col-header {
+border-radius: 8px 8px 0 0;
+padding: 10px 14px;
+text-align: center;
+font-size: 0.62rem;
+font-weight: 700;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+margin-bottom: 0;
+}
+.col-header.src  { background: rgba(148,163,184,0.08); border: 1px solid #1e293b; color: var(–ext-color); }
+.col-header.ocean{ background: rgba(14,165,233,0.08);  border: 1px solid rgba(14,165,233,0.3); color: var(–ocean-color); }
+.col-header.visa { background: rgba(245,166,35,0.08);  border: 1px solid rgba(245,166,35,0.3); color: var(–visa-color); }
+
+/* ── SOURCE CHANNEL COLUMN ── */
+.sources {
+padding: 12px 0;
+display: flex;
+flex-direction: column;
+gap: 6px;
+}
+
+.src-item {
+font-size: 0.58rem;
+padding: 5px 10px;
+border-radius: 4px;
+border: 1px solid #1e293b;
+color: var(–muted);
+text-align: right;
+background: rgba(255,255,255,0.02);
+}
+
+/* ── OCEAN INTERNAL ── */
+.ocean-box {
+border: 1px solid rgba(14,165,233,0.3);
+border-radius: 8px;
+background: rgba(14,165,233,0.03);
+margin: 0 8px;
+padding: 16px 12px;
+position: relative;
+}
+
+.ocean-label {
+position: absolute;
+top: -11px; left: 14px;
+background: var(–bg);
+padding: 0 8px;
+font-family: ‘Syne’, sans-serif;
+font-size: 0.75rem;
+font-weight: 800;
+color: var(–ocean-color);
+letter-spacing: 0.05em;
+}
+
+/* ── PHASE BLOCKS INSIDE OCEAN ── */
+.phase {
+margin-bottom: 20px;
+}
+
+.phase-title {
+font-size: 0.55rem;
+font-weight: 700;
+letter-spacing: 0.14em;
+text-transform: uppercase;
+padding: 3px 10px;
+border-radius: 20px;
+margin-bottom: 10px;
+display: inline-block;
+}
+.phase-title.auth  { background: rgba(56,189,248,0.1);  color: var(–online); border: 1px solid rgba(56,189,248,0.25); }
+.phase-title.clear { background: rgba(167,139,250,0.1); color: var(–clear);  border: 1px solid rgba(167,139,250,0.25); }
+
+/* STEP ROWS */
+.step {
+display: flex;
+align-items: flex-start;
+gap: 10px;
+margin-bottom: 8px;
+padding: 8px 10px;
+border-radius: 6px;
+border: 1px solid transparent;
+position: relative;
+}
+
+.step.inbound  { border-color: rgba(56,189,248,0.15); background: rgba(56,189,248,0.04); }
+.step.outbound { border-color: rgba(52,211,153,0.15); background: rgba(52,211,153,0.04); }
+.step.internal { border-color: rgba(14,165,233,0.12); background: rgba(14,165,233,0.03); }
+.step.clr-in   { border-color: rgba(167,139,250,0.15); background: rgba(167,139,250,0.04); }
+.step.clr-out  { border-color: rgba(52,211,153,0.12); background: rgba(52,211,153,0.04); }
+
+.step-num {
+min-width: 20px; height: 20px;
+border-radius: 50%;
+display: flex; align-items: center; justify-content: center;
+font-size: 0.58rem; font-weight: 700;
+flex-shrink: 0; margin-top: 1px;
+}
+.step-num.auth  { background: rgba(56,189,248,0.2);  color: var(–online); border: 1px solid rgba(56,189,248,0.4); }
+.step-num.out   { background: rgba(52,211,153,0.2);  color: var(–resp);   border: 1px solid rgba(52,211,153,0.4); }
+.step-num.int   { background: rgba(14,165,233,0.15); color: var(–ocean-color); border: 1px solid rgba(14,165,233,0.3); }
+.step-num.clr   { background: rgba(167,139,250,0.2); color: var(–clear);  border: 1px solid rgba(167,139,250,0.4); }
+
+.step-body { flex: 1; }
+
+.step-title {
+font-size: 0.66rem;
+font-weight: 700;
+margin-bottom: 4px;
+display: flex;
+align-items: center;
+gap: 6px;
+flex-wrap: wrap;
+}
+
+.mti-tag {
+font-size: 0.6rem;
+padding: 1px 7px;
+border-radius: 3px;
+font-weight: 700;
+}
+.mti-tag.req  { background: rgba(56,189,248,0.15); color: var(–online); }
+.mti-tag.rsp  { background: rgba(52,211,153,0.15); color: var(–resp); }
+.mti-tag.clr  { background: rgba(167,139,250,0.15); color: var(–clear); }
+.mti-tag.int  { background: rgba(14,165,233,0.12); color: var(–ocean-color); }
+
+.dir-arrow {
+font-size: 0.55rem;
+padding: 1px 6px;
+border-radius: 3px;
+font-weight: 600;
+white-space: nowrap;
+}
+.dir-arrow.from-ch  { background: rgba(148,163,184,0.1); color: var(–ext-color); }
+.dir-arrow.to-visa  { background: rgba(245,166,35,0.1);  color: var(–visa-color); }
+.dir-arrow.from-visa{ background: rgba(245,166,35,0.1);  color: var(–visa-color); }
+.dir-arrow.internal { background: rgba(14,165,233,0.1);  color: var(–ocean-color); }
+.dir-arrow.to-ch    { background: rgba(148,163,184,0.1); color: var(–ext-color); }
+
+.step-desc {
+font-size: 0.58rem;
+color: var(–muted);
+margin-bottom: 5px;
+line-height: 1.5;
+}
+
+.fields {
+display: flex; flex-wrap: wrap; gap: 3px;
+}
+.f {
+font-size: 0.52rem;
+padding: 1px 5px;
+border-radius: 3px;
+background: rgba(255,255,255,0.03);
+border: 1px solid rgba(255,255,255,0.07);
+color: var(–dim);
+}
+.f b { color: var(–text); }
+.f.hi { border-color: rgba(14,165,233,0.3); color: var(–ocean-color); background: rgba(14,165,233,0.06); }
+.f.hi b { color: var(–ocean-color); }
+
+/* DECISION BOX */
+.decision-box {
+border: 1px solid rgba(251,146,60,0.35);
+border-radius: 6px;
+background: rgba(251,146,60,0.06);
+padding: 8px 12px;
+margin: 8px 0;
+}
+.decision-box h4 {
+font-size: 0.62rem; font-weight: 700;
+color: var(–decision); margin-bottom: 6px;
+}
+.decision-row {
+display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.dec-item {
+font-size: 0.56rem;
+padding: 3px 8px;
+border-radius: 4px;
+background: rgba(251,146,60,0.08);
+border: 1px solid rgba(251,146,60,0.2);
+color: var(–text);
+}
+.dec-item b { color: var(–decision); }
+
+/* GATE ROW */
+.gate-row {
+display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0;
+}
+.gate {
+font-size: 0.56rem; font-weight: 600;
+padding: 4px 10px; border-radius: 4px;
+background: rgba(14,165,233,0.1);
+border: 1px solid rgba(14,165,233,0.25);
+color: var(–ocean-color);
+text-align: center;
+}
+.gate.active {
+background: rgba(14,165,233,0.18);
+border-color: rgba(14,165,233,0.5);
+box-shadow: 0 0 8px rgba(14,165,233,0.15);
+}
+
+/* VISA COLUMN */
+.visa-col {
+padding: 12px 0 12px 8px;
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+
+.visa-node {
+padding: 8px 10px;
+border-radius: 6px;
+font-size: 0.58rem;
+text-align: center;
+border: 1px solid;
+}
+.visa-node.vip   { border-color: rgba(245,166,35,0.4); background: rgba(245,166,35,0.07); color: var(–visa-color); }
+.visa-node.b2    { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.07); color: var(–clear); }
+.visa-node.vss   { border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.06); color: var(–resp); }
+.visa-node .vn   { font-weight: 700; font-size: 0.65rem; display: block; margin-bottom: 2px; }
+.visa-node .vs   { color: var(–muted); font-size: 0.52rem; }
+
+/* divider */
+.divider {
+max-width: 1200px; margin: 4px auto;
+border: none; border-top: 1px dashed var(–border2);
+}
+
+/* settle summary */
+.settle-summary {
+max-width: 1200px; margin: 16px auto 0;
+border: 1px solid rgba(245,166,35,0.2);
+border-radius: 8px;
+background: rgba(245,166,35,0.04);
+padding: 14px 18px;
+display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.settle-summary h4 {
+grid-column: 1/4; font-size: 0.62rem; font-weight: 700;
+text-transform: uppercase; letter-spacing: 0.1em;
+color: var(–visa-color); margin-bottom: 4px;
+font-family: ‘Syne’, sans-serif;
+}
+.si { font-size: 0.58rem; color: var(–muted); line-height: 1.6; }
+.si b { color: var(–text); }
+.si.hi b { color: var(–ocean-color); }
+
+footer {
+max-width: 1200px; margin: 20px auto 0;
+text-align: center; font-size: 0.55rem; color: var(–muted);
+border-top: 1px solid var(–border); padding-top: 12px;
+}
+
+/* connector arrows between cols */
+.connector {
+display: flex; align-items: center;
+margin: 4px 0;
+gap: 4px;
+}
+.conn-line { flex:1; height:1px; background: var(–border2); }
+.conn-arrow { font-size: 0.6rem; }
+</style>
+
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>OCEAN — Acquirer Flow</h1>
+    <p>Kanal → OCEAN Gateway → VisaNet (V.I.P.) → BASE II → VSS</p>
+  </div>
+  <div class="role-badge">🏦 SİZ = ACQUİRER BANK</div>
+</header>
+
+<div style="max-width:1200px; margin: 0 auto 16px; display:grid; grid-template-columns:200px 1fr 180px; gap:0;">
+  <div class="col-header src">Kanal / Kaynak</div>
+  <div class="col-header ocean" style="margin:0 8px;">OCEAN (Sizin Sisteminiz)</div>
+  <div class="col-header visa">VisaNet</div>
+</div>
+
+<div class="main-grid">
+
+  <!-- SOURCE COLUMN -->
+
+  <div>
+    <div class="sources">
+      <div style="font-size:0.55rem; color:var(--muted); margin-bottom:4px; text-align:right; letter-spacing:0.08em;">GİRİŞ KANALLARI</div>
+      <div class="src-item">🚌 Ulaşım Uygulamaları<br><span style="font-size:0.5rem;color:#334155">→ VTS Gate</span></div>
+      <div class="src-item">🖥 Fiziki POS<br><span style="font-size:0.5rem;color:#334155">→ POS Gate</span></div>
+      <div class="src-item">🌐 Sanal POS<br><span style="font-size:0.5rem;color:#334155">→ POS Gate</span></div>
+      <div class="src-item">📱 SoftPOS (MPOS)<br><span style="font-size:0.5rem;color:#334155">→ MPOS Gate</span></div>
+      <div class="src-item">🏧 BKM TechPOS (ÖKC)<br><span style="font-size:0.5rem;color:#334155">→ ISO Gate</span></div>
+      <div class="src-item">🏦 ATM / EFT / Havale<br>Mobil / IVN / IVR<br><span style="font-size:0.5rem;color:#334155">→ MNG Gate</span></div>
+    </div>
+  </div>
+
+  <!-- OCEAN INTERNAL -->
+
+  <div>
+    <div class="ocean-box">
+      <div class="ocean-label">OCEAN</div>
+
+```
+  <!-- ① ONLINE AUTH PHASE -->
+  <div class="phase">
+    <div class="phase-title auth">① Online Authorization — Real-time</div>
+
+    <!-- STEP 1: Kanal → Gate -->
+    <div class="step internal">
+      <div class="step-num int">1</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag int">ISO 8583 REQUEST</span>
+          <span class="dir-arrow from-ch">Kanal → Gate</span>
+        </div>
+        <div class="step-desc">Kanaldan gelen işlem isteği ilgili Gate'e ulaşır</div>
+        <div class="gate-row">
+          <div class="gate active">VTS Gate</div>
+          <div class="gate active">POS Gate</div>
+          <div class="gate active">MPOS Gate</div>
+          <div class="gate active">ISO Gate</div>
+          <div class="gate active">MNG Gate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Kart Onus Kararı -->
+    <div class="decision-box">
+      <h4>⬡ KART ONUS / NOT ONUS KARARI</h4>
+      <div class="step-desc" style="margin-bottom:6px;">Gate → Merkezi Routing Engine: BIN tablosuna bakılır</div>
+      <div class="decision-row">
+        <div class="dec-item"><b>BIN = Bizim kart</b> → Onus → İç Auth (Issuer moduna geç)</div>
+        <div class="dec-item"><b>BIN = Yabancı Visa kart</b> → Not Onus → Visa Gate'e yönlendir</div>
+        <div class="dec-item"><b>BIN = MC</b> → MC Gate'e yönlendir</div>
+        <div class="dec-item"><b>BIN = JCB</b> → JCB Gate'e yönlendir</div>
+      </div>
+      <div style="font-size:0.55rem; color:var(--decision); margin-top:4px;">▶ Bu diyagram: NOT ONUS (Yabancı Visa Kart) yolu — Visa Gate devreye girer</div>
+    </div>
+
+    <!-- STEP 3: Visa Gate -->
+    <div class="step internal">
+      <div class="step-num int">2</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag int">ROUTING</span>
+          <span class="dir-arrow internal">→ Visa Gate</span>
+        </div>
+        <div class="step-desc">ISO 8583 mesajı Visa Gate formatına dönüştürülür (V.I.P. spec uyumlu). EMV/F55 alanı eklenir, F63 Network Data hazırlanır.</div>
+        <div class="gate-row">
+          <div class="gate active">Visa Gate</div>
+          <div class="gate" style="opacity:0.4">MC Gate</div>
+          <div class="gate" style="opacity:0.4">BKM Gate</div>
+          <div class="gate" style="opacity:0.4">JCB Gate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: 0100 → VisaNet -->
+    <div class="step outbound">
+      <div class="step-num out">3</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag req">0100</span>
+          <span>Authorization Request</span>
+          <span class="dir-arrow to-visa">→ VisaNet (V.I.P.)</span>
+        </div>
+        <div class="step-desc">Visa Gate TCP/TLS bağlantısı üzerinden VisaNet'e iletir</div>
+        <div class="fields">
+          <span class="f"><b>F2</b> PAN</span>
+          <span class="f"><b>F3</b> Proc Code</span>
+          <span class="f hi"><b>F4</b> Trans Amt</span>
+          <span class="f"><b>F7</b> Date/Time</span>
+          <span class="f hi"><b>F11</b> STAN</span>
+          <span class="f"><b>F22</b> POS Entry Mode</span>
+          <span class="f"><b>F41</b> Terminal ID</span>
+          <span class="f hi"><b>F42</b> Merchant ID</span>
+          <span class="f"><b>F43</b> Merchant Name</span>
+          <span class="f"><b>F49</b> Currency</span>
+          <span class="f"><b>F52</b> PIN Data</span>
+          <span class="f hi"><b>F55</b> EMV/ICC Data</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5: 0110 ← VisaNet -->
+    <div class="step inbound">
+      <div class="step-num auth">4</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag rsp">0110</span>
+          <span>Authorization Response</span>
+          <span class="dir-arrow from-visa">← VisaNet</span>
+        </div>
+        <div class="step-desc">VisaNet Issuer'dan dönen cevabı iletir. Visa Gate cevabı parse eder.</div>
+        <div class="fields">
+          <span class="f hi"><b>F39</b> Response Code (00/51/14…)</span>
+          <span class="f hi"><b>F38</b> Auth Code (6 hane)</span>
+          <span class="f"><b>F55</b> ARPC (EMV)</span>
+          <span class="f"><b>F44</b> Addl Resp Data</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 6: POS'a cevap -->
+    <div class="step internal">
+      <div class="step-num int">5</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag int">CEVAP</span>
+          <span class="dir-arrow to-ch">→ Kanala (POS/ATM…)</span>
+        </div>
+        <div class="step-desc">F39=00 ise POS'a onay, chip ise F55 ARPC iletilir. İşlem kaydı loglanır (Logger/Event Gate).</div>
+        <div class="gate-row">
+          <div class="gate active">Logger</div>
+          <div class="gate active">Event Gate</div>
+          <div class="gate active">Monitoring</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMV/HSM Note -->
+    <div style="border:1px solid rgba(14,165,233,0.15); border-radius:5px; padding:6px 10px; margin-top:4px; background:rgba(14,165,233,0.03);">
+      <span style="font-size:0.56rem; color:var(--muted);">⚙ Yardımcı servisler (Online Auth sırasında): </span>
+      <div class="gate-row" style="margin:4px 0 0;">
+        <div class="gate">EMV Gate (ARQC doğrulama)</div>
+        <div class="gate">HSM Gate (PIN şifreleme/çözme)</div>
+      </div>
+    </div>
+
+  </div><!-- /auth phase -->
+
+  <hr class="divider" style="margin:12px 0;">
+
+  <!-- ② CLEARING PHASE -->
+  <div class="phase">
+    <div class="phase-title clear">② Batch Clearing — BASE II (T+0/T+1)</div>
+
+    <!-- STEP 7: Batch hazırla -->
+    <div class="step clr-in">
+      <div class="step-num clr">6</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag clr">BATCH HAZIRLIK</span>
+          <span class="dir-arrow internal">OCEAN İç İşlem</span>
+        </div>
+        <div class="step-desc">Gün sonu: Online auth kaydı olan tüm Visa işlemler toplanır. Settlement Amount (F5) ve FX kuru hesaplanır.</div>
+      </div>
+    </div>
+
+    <!-- STEP 8: 0220 → BASE II -->
+    <div class="step outbound">
+      <div class="step-num out">7</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag clr">0220 TC05</span>
+          <span>Financial Presentment</span>
+          <span class="dir-arrow to-visa">→ BASE II</span>
+        </div>
+        <div class="step-desc">Acquirer batch dosyasını BASE II'ye gönderir (Visa Gate üzerinden)</div>
+        <div class="fields">
+          <span class="f"><b>F2</b> PAN</span>
+          <span class="f"><b>F3</b> Proc Code</span>
+          <span class="f hi"><b>F4</b> Trans Amt</span>
+          <span class="f hi"><b>F5</b> Settlement Amt</span>
+          <span class="f"><b>F9</b> Conv Rate (Sett)</span>
+          <span class="f"><b>F38</b> Auth Code</span>
+          <span class="f"><b>F43</b> Merchant Name</span>
+          <span class="f"><b>F63</b> Addl Data/TC</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 9: 0230 ← BASE II -->
+    <div class="step clr-in">
+      <div class="step-num clr">8</div>
+      <div class="step-body">
+        <div class="step-title">
+          <span class="mti-tag rsp">0230</span>
+          <span>Presentment ACK</span>
+          <span class="dir-arrow from-visa">← BASE II</span>
+        </div>
+        <div class="step-desc">BASE II kabul onayı döner. Acquirer net position hesaplanır. Interchange fee kesilir.</div>
+        <div class="fields">
+          <span class="f hi"><b>F39</b> 00 = Kabul</span>
+          <span class="f"><b>F38</b> Auth Code</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /clearing phase -->
+
+</div><!-- /ocean-box -->
+```
+
+  </div><!-- /ocean col -->
+
+  <!-- VISA COLUMN -->
+
+  <div class="visa-col">
+    <div style="font-size:0.55rem; color:var(--muted); margin-bottom:6px; letter-spacing:0.08em; padding-left:4px;">VİSANET</div>
+    <div class="visa-node vip">
+      <span class="vn">V.I.P.</span>
+      <span class="vs">Visa International<br>Payment System<br>Real-time routing</span>
+    </div>
+    <div style="text-align:center; font-size:0.7rem; color:var(--dim); margin:4px 0;">↕</div>
+    <div class="visa-node vip" style="opacity:0.7; font-size:0.55rem;">
+      <span class="vn" style="font-size:0.6rem;">Issuer Bank</span>
+      <span class="vs">Auth kararı<br>Limit/Fraud</span>
+    </div>
+    <div style="height:40px;"></div>
+    <div class="visa-node b2">
+      <span class="vn">BASE II</span>
+      <span class="vs">Batch Clearing<br>Interchange Fee<br>FX Conversion</span>
+    </div>
+    <div style="text-align:center; font-size:0.7rem; color:var(--dim); margin:4px 0;">↓</div>
+    <div class="visa-node vss">
+      <span class="vn">VSS</span>
+      <span class="vs">Settlement<br>Net position<br>T+1</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- SETTLEMENT SUMMARY -->
+
+<div class="settle-summary">
+  <h4>💰 Settlement — Acquirer Net Position (T+1)</h4>
+  <div class="si hi">
+    <b>Visa'dan Alacağınız</b><br>
+    = Σ İşlem tutarları<br>
+    − Interchange Fee (Issuer'a gider)<br>
+    Net tutar VSS üzerinden hesaplanır
+  </div>
+  <div class="si">
+    <b>Interchange Fee Yönü</b><br>
+    Acquirer → Issuer (ters akış)<br>
+    Merchant category kodu belirler<br>
+    BASE II TC33 ile VSS keser
+  </div>
+  <div class="si">
+    <b>FX (Yabancı Para İşlem)</b><br>
+    F9 = Settlement conv rate<br>
+    Visa, USD bazlı settlement yapar<br>
+    Acquirer TRY → USD dönüşümü
+  </div>
+</div>
+
+<footer>
+  OCEAN Acquirer Flow · ISO 8583 Visa V.I.P. + BASE II + VSS · Kanal → Gate → Visa Gate → VisaNet
+</footer>
+
+</body>
+</html>
