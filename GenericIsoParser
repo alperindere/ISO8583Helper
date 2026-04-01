@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO 8583 Message Parser & Builder</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .network-selector {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .network-btn {
+            padding: 12px 24px;
+            border: 2px solid #dee2e6;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .network-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .network-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .network-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .visa { background: #1A1F71; }
+        .mastercard { background: #EB001B; }
+        .bkm { background: #00A651; }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            min-height: 600px;
+        }
+
+        .panel {
+            padding: 30px;
+        }
+
+        .panel-left {
+            border-right: 2px solid #e9ecef;
+        }
+
+        .panel h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #495057;
+            font-size: 14px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            resize: vertical;
+            min-height: 150px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .fields-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .field-row {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            transition: all 0.2s;
+        }
+
+        .field-row:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateX(4px);
+        }
+
+        .field-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .field-number {
+            font-weight: 700;
+            color: #667eea;
+            font-size: 14px;
+        }
+
+        .field-name {
+            font-size: 12px;
+            color: #6c757d;
+            font-weight: 600;
+        }
+
+        .field-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .field-input input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .field-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .field-type {
+            font-size: 11px;
+            padding: 4px 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            color: #495057;
+        }
+
+        .bitmap-display {
+            background: #212529;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 15px 0;
+            line-height: 1.6;
+            word-break: break-all;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 1024px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            .panel-left {
+                border-right: none;
+                border-bottom: 2px solid #e9ecef;
+            }
+        }
+
+        .example-messages {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .example-messages h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .example-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .example-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ISO 8583 Field Definitions - Network specific
+        const FIELD_DEFINITIONS = {
+            VISA: {
+                2: { name: 'Primary Account Number (PAN)', type: 'LLVAR', format: 'n', maxLen: 19 },
+                3: { name: 'Processing Code', type: 'FIXED', format: 'n', len: 6 },
+                4: { name: 'Amount Transaction', type: 'FIXED', format: 'n', len: 12 },
+                7: { name: 'Transmission Date Time', type: 'FIXED', format: 'n', len: 10 },
+                11: { name: 'System Trace Audit Number (STAN)', type: 'FIXED', format: 'n', len: 6 },
+                12: { name: 'Local Transaction Time', type: 'FIXED', format: 'n', len: 6 },
+                13: { name: 'Local Transaction Date', type: 'FIXED', format: 'n', len: 4 },
+                14: { name: 'Expiration Date', type: 'FIXED', format: 'n', len: 4 },
+                18: { name: 'Merchant Type', type: 'FIXED', format: 'n', len: 4 },
+                22: { name: 'POS Entry Mode', type: 'FIXED', format: 'n', len: 3 },
+                25: { name: 'POS Condition Code', type: 'FIXED', format: 'n', len: 2 },
+                32: { name: 'Acquiring Institution ID', type: 'LLVAR', format: 'n', maxLen: 11 },
+                35: { name: 'Track 2 Data', type: 'LLVAR', format: 'z', maxLen: 37 },
+                37: { name: 'Retrieval Reference Number', type: 'FIXED', format: 'an', len: 12 },
+                38: { name: 'Authorization ID Response', type: 'FIXED', format: 'an', len: 6 },
+                39: { name: 'Response Code', type: 'FIXED', format: 'an', len: 2 },
+                41: { name: 'Card Acceptor Terminal ID', type: 'FIXED', format: 'ans', len: 8 },
+                42: { name: 'Card Acceptor ID Code', type: 'FIXED', format: 'ans', len: 15 },
+                43: { name: 'Card Acceptor Name/Location', type: 'FIXED', format: 'ans', len: 40 },
+                49: { name: 'Currency Code Transaction', type: 'FIXED', format: 'n', len: 3 },
+                52: { name: 'PIN Data', type: 'FIXED', format: 'b', len: 8 },
+                55: { name: 'EMV Data (ICC)', type: 'LLLVAR', format: 'b', maxLen: 255 },
+                90: { name: 'Original Data Elements', type: 'FIXED', format: 'n', len: 42 },
+                95: { name: 'Replacement Amounts', type: 'FIXED', format: 'an', len: 42 },
+            },
+            MASTERCARD: {
+                2: { name: 'Primary Account Number', type: 'LLVAR', format: 'n', maxLen: 19 },
+                3: { name: 'Processing Code', type: 'FIXED', format: 'n', len: 6 },
+                4: { name: 'Amount Transaction', type: 'FIXED', format: 'n', len: 12 },
+                7: { name: 'Transmission Date Time', type: 'FIXED', format: 'n', len: 10 },
+                11: { name: 'STAN', type: 'FIXED', format: 'n', len: 6 },
+                12: { name: 'Time Local Transaction', type: 'FIXED', format: 'n', len: 6 },
+                13: { name: 'Date Local Transaction', type: 'FIXED', format: 'n', len: 4 },
+                14: { name: 'Date Expiration', type: 'FIXED', format: 'n', len: 4 },
+                18: { name: 'Merchant Type', type: 'FIXED', format: 'n', len: 4 },
+                22: { name: 'POS Entry Mode', type: 'FIXED', format: 'n', len: 3 },
+                25: { name: 'POS Condition Code', type: 'FIXED', format: 'n', len: 2 },
+                32: { name: 'Acquiring Institution ID', type: 'LLVAR', format: 'n', maxLen: 11 },
+                35: { name: 'Track 2 Data', type: 'LLVAR', format: 'z', maxLen: 37 },
+                37: { name: 'Retrieval Reference Number', type: 'FIXED', format: 'an', len: 12 },
+                38: { name: 'Authorization ID', type: 'FIXED', format: 'an', len: 6 },
+                39: { name: 'Response Code', type: 'FIXED', format: 'an', len: 2 },
+                41: { name: 'Terminal ID', type: 'FIXED', format: 'ans', len: 8 },
+                42: { name: 'Merchant ID', type: 'FIXED', format: 'ans', len: 15 },
+                43: { name: 'Card Acceptor Name/Location', type: 'FIXED', format: 'ans', len: 40 },
+                48: { name: 'Additional Data', type: 'LLLVAR', format: 'ans', maxLen: 999 },
+                49: { name: 'Currency Code', type: 'FIXED', format: 'n', len: 3 },
+                52: { name: 'PIN Block', type: 'FIXED', format: 'b', len: 8 },
+                55: { name: 'ICC Data', type: 'LLLVAR', format: 'b', maxLen: 255 },
+                90: { name: 'Original Data Elements', type: 'FIXED', format: 'n', len: 42 },
+                95: { name: 'Replacement Amounts', type: 'FIXED', format: 'an', len: 42 },
+            },
+            BKM: {
+                2: { name: 'Kart Numarası', type: 'LLVAR', format: 'n', maxLen: 19 },
+                3: { name: 'İşlem Kodu', type: 'FIXED', format: 'n', len: 6 },
+                4: { name: 'İşlem Tutarı', type: 'FIXED', format: 'n', len: 12 },
+                7: { name: 'İletim Tarih Saat', type: 'FIXED', format: 'n', len: 10 },
+                11: { name: 'STAN', type: 'FIXED', format: 'n', len: 6 },
+                12: { name: 'Yerel İşlem Saati', type: 'FIXED', format: 'n', len: 6 },
+                13: { name: 'Yerel İşlem Tarihi', type: 'FIXED', format: 'n', len: 4 },
+                14: { name: 'Son Kullanma Tarihi', type: 'FIXED', format: 'n', len: 4 },
+                18: { name: 'Üye İşyeri Tipi (MCC)', type: 'FIXED', format: 'n', len: 4 },
+                22: { name: 'POS Giriş Modu', type: 'FIXED', format: 'n', len: 3 },
+                25: { name: 'POS Durum Kodu', type: 'FIXED', format: 'n', len: 2 },
+                32: { name: 'Alıcı Kurum Kodu', type: 'LLVAR', format: 'n', maxLen: 11 },
+                35: { name: 'Track 2 Verisi', type: 'LLVAR', format: 'z', maxLen: 37 },
+                37: { name: 'Referans Numarası', type: 'FIXED', format: 'an', len: 12 },
+                38: { name: 'Onay Kodu', type: 'FIXED', format: 'an', len: 6 },
+                39: { name: 'Yanıt Kodu', type: 'FIXED', format: 'an', len: 2 },
+                41: { name: 'Terminal ID', type: 'FIXED', format: 'ans', len: 8 },
+                42: { name: 'Üye İşyeri Numarası', type: 'FIXED', format: 'ans', len: 15 },
+                43: { name: 'Üye İşyeri Adı/Lokasyon', type: 'FIXED', format: 'ans', len: 40 },
+                49: { name: 'Para Birimi Kodu', type: 'FIXED', format: 'n', len: 3 },
+                52: { name: 'PIN Blok', type: 'FIXED', format: 'b', len: 8 },
+                55: { name: 'EMV (Chip) Verisi', type: 'LLLVAR', format: 'b', maxLen: 255 },
+                90: { name: 'Orijinal Veri Elemanları', type: 'FIXED', format: 'n', len: 42 },
+                95: { name: 'Düzeltme Tutarları', type: 'FIXED', format: 'an', len: 42 },
+            }
+        };
+
+        // Example messages
+        const EXAMPLE_MESSAGES = {
+            VISA: {
+                'Authorization Request (0100)': '01004000000000000000161234567890123456000000100000121512345612000612000601121200019999051212345678TEST MERCHANT',
+                'Authorization Response (0110)': '011040000000200000001612345678901234560000001000001215123456120006120006011212000199990512123456780012345678TEST MERCHANT',
+            },
+            MASTERCARD: {
+                'Purchase Request (0200)': '02004000000000000000161234567890123456000000050000121512345612000612000601121200019999051212345678TEST MERCHANT',
+                'Purchase Response (0210)': '021040000000200000001612345678901234560000000500001215123456120006120006011212000199990512123456780012345678TEST MERCHANT',
+            },
+            BKM: {
+                'Satış İsteği (0200)': '02004000000000000000161234567890123456000000020000121512345612000612000601121200019999949121234567800TEST ISYERI',
+                'Satış Yanıtı (0210)': '021040000000200000001612345678901234560000000200001215123456120006120006011212000199999491212345678001234567800TEST ISYERI',
+            }
+        };
+
+        function ISO8583Parser() {
+            const [network, setNetwork] = useState('VISA');
+            const [rawMessage, setRawMessage] = useState('');
+            const [mti, setMti] = useState('');
+            const [bitmap, setBitmap] = useState('');
+            const [fields, setFields] = useState({});
+            const [parsedFields, setParsedFields] = useState([]);
+            const [alert, setAlert] = useState(null);
+            const [generatedMessage, setGeneratedMessage] = useState('');
+
+            const parseMessage = () => {
+                try {
+                    if (!rawMessage || rawMessage.length < 20) {
+                        throw new Error('Mesaj çok kısa! Minimum 20 karakter gerekli.');
+                    }
+
+                    // MTI parse
+                    const messageMti = rawMessage.substring(0, 4);
+                    setMti(messageMti);
+
+                    // Bitmap parse (hex to binary)
+                    const bitmapHex = rawMessage.substring(4, 20);
+                    const bitmapBin = hexToBinary(bitmapHex);
+                    setBitmap(bitmapBin);
+
+                    // Parse fields
+                    const fieldDefs = FIELD_DEFINITIONS[network];
+                    const parsedData = {};
+                    const fieldsArray = [];
+                    let position = 20;
+
+                    for (let i = 1; i <= 64; i++) {
+                        if (bitmapBin[i - 1] === '1') {
+                            const fieldDef = fieldDefs[i];
+                            if (!fieldDef) continue;
+
+                            let fieldValue = '';
+                            let fieldLength = 0;
+
+                            if (fieldDef.type === 'FIXED') {
+                                fieldLength = fieldDef.len;
+                                fieldValue = rawMessage.substring(position, position + fieldLength);
+                                position += fieldLength;
+                            } else if (fieldDef.type === 'LLVAR') {
+                                const lenIndicator = parseInt(rawMessage.substring(position, position + 2));
+                                position += 2;
+                                fieldValue = rawMessage.substring(position, position + lenIndicator);
+                                position += lenIndicator;
+                                fieldLength = lenIndicator;
+                            } else if (fieldDef.type === 'LLLVAR') {
+                                const lenIndicator = parseInt(rawMessage.substring(position, position + 3));
+                                position += 3;
+                                fieldValue = rawMessage.substring(position, position + lenIndicator);
+                                position += lenIndicator;
+                                fieldLength = lenIndicator;
+                            }
+
+                            parsedData[i] = fieldValue;
+                            fieldsArray.push({
+                                number: i,
+                                name: fieldDef.name,
+                                value: fieldValue,
+                                type: fieldDef.type,
+                                format: fieldDef.format,
+                                length: fieldLength
+                            });
+                        }
+                    }
+
+                    setFields(parsedData);
+                    setParsedFields(fieldsArray);
+                    setAlert({ type: 'success', message: `✓ Mesaj başarıyla parse edildi! ${fieldsArray.length} field bulundu.` });
+
+                } catch (error) {
+                    setAlert({ type: 'error', message: `✗ Parse hatası: ${error.message}` });
+                }
+            };
+
+            const generateMessage = () => {
+                try {
+                    if (!mti || mti.length !== 4) {
+                        throw new Error('MTI 4 karakter olmalı!');
+                    }
+
+                    // Create bitmap
+                    const fieldNumbers = Object.keys(fields).map(Number).sort((a, b) => a - b);
+                    let bitmapBin = '';
+                    for (let i = 1; i <= 64; i++) {
+                        bitmapBin += fieldNumbers.includes(i) ? '1' : '0';
+                    }
+                    const bitmapHex = binaryToHex(bitmapBin);
+
+                    // Build message
+                    let message = mti + bitmapHex;
+                    const fieldDefs = FIELD_DEFINITIONS[network];
+
+                    for (const fieldNum of fieldNumbers) {
+                        const fieldDef = fieldDefs[fieldNum];
+                        const fieldValue = fields[fieldNum] || '';
+
+                        if (fieldDef.type === 'FIXED') {
+                            message += fieldValue.padEnd(fieldDef.len, ' ').substring(0, fieldDef.len);
+                        } else if (fieldDef.type === 'LLVAR') {
+                            const len = fieldValue.length.toString().padStart(2, '0');
+                            message += len + fieldValue;
+                        } else if (fieldDef.type === 'LLLVAR') {
+                            const len = fieldValue.length.toString().padStart(3, '0');
+                            message += len + fieldValue;
+                        }
+                    }
+
+                    setGeneratedMessage(message);
+                    setAlert({ type: 'success', message: '✓ Mesaj başarıyla oluşturuldu!' });
+
+                } catch (error) {
+                    setAlert({ type: 'error', message: `✗ Oluşturma hatası: ${error.message}` });
+                }
+            };
+
+            const hexToBinary = (hex) => {
+                return hex.split('').map(h => {
+                    return parseInt(h, 16).toString(2).padStart(4, '0');
+                }).join('');
+            };
+
+            const binaryToHex = (bin) => {
+                let hex = '';
+                for (let i = 0; i < bin.length; i += 4) {
+                    hex += parseInt(bin.substr(i, 4), 2).toString(16).toUpperCase();
+                }
+                return hex;
+            };
+
+            const updateField = (fieldNum, value) => {
+                setFields(prev => ({
+                    ...prev,
+                    [fieldNum]: value
+                }));
+            };
+
+            const addField = (fieldNum) => {
+                if (!fields[fieldNum]) {
+                    setFields(prev => ({
+                        ...prev,
+                        [fieldNum]: ''
+                    }));
+                }
+            };
+
+            const loadExample = (exampleMsg) => {
+                setRawMessage(exampleMsg);
+                setAlert({ type: 'info', message: 'Örnek mesaj yüklendi. "Parse Et" butonuna tıklayın.' });
+            };
+
+            const clearAll = () => {
+                setRawMessage('');
+                setMti('');
+                setBitmap('');
+                setFields({});
+                setParsedFields([]);
+                setGeneratedMessage('');
+                setAlert(null);
+            };
+
+            const fieldDefs = FIELD_DEFINITIONS[network];
+            const availableFields = Object.keys(fieldDefs).map(Number).sort((a, b) => a - b);
+
+            return (
+                <div className="container">
+                    <div className="header">
+                        <h1>🏦 ISO 8583 Message Parser & Builder</h1>
+                        <p>Visa, Mastercard, BKM mesajlarını parse edin ve yeni mesajlar oluşturun</p>
+                    </div>
+
+                    <div className="network-selector">
+                        <strong>Network Seçimi:</strong>
+                        <button
+                            className={`network-btn ${network === 'VISA' ? 'active' : ''}`}
+                            onClick={() => setNetwork('VISA')}
+                        >
+                            <div className="network-icon visa"></div>
+                            VISA
+                        </button>
+                        <button
+                            className={`network-btn ${network === 'MASTERCARD' ? 'active' : ''}`}
+                            onClick={() => setNetwork('MASTERCARD')}
+                        >
+                            <div className="network-icon mastercard"></div>
+                            Mastercard
+                        </button>
+                        <button
+                            className={`network-btn ${network === 'BKM' ? 'active' : ''}`}
+                            onClick={() => setNetwork('BKM')}
+                        >
+                            <div className="network-icon bkm"></div>
+                            BKM
+                        </button>
+                    </div>
+
+                    {alert && (
+                        <div style={{ padding: '20px 30px' }}>
+                            <div className={`alert alert-${alert.type}`}>
+                                {alert.message}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="content">
+                        <div className="panel panel-left">
+                            <h2>📥 Parse Mesaj</h2>
+                            
+                            <div className="input-group">
+                                <label>ISO 8583 Mesajı (Hex/ASCII)</label>
+                                <textarea
+                                    value={rawMessage}
+                                    onChange={(e) => setRawMessage(e.target.value)}
+                                    placeholder="Örnek: 01004000000000000000161234567890123456..."
+                                />
+                            </div>
+
+                            <div className="btn-group">
+                                <button className="btn btn-primary" onClick={parseMessage}>
+                                    🔍 Parse Et
+                                </button>
+                                <button className="btn btn-secondary" onClick={clearAll}>
+                                    🗑️ Temizle
+                                </button>
+                            </div>
+
+                            <div className="example-messages">
+                                <h4>📋 Örnek Mesajlar ({network})</h4>
+                                {Object.entries(EXAMPLE_MESSAGES[network]).map(([name, msg]) => (
+                                    <button
+                                        key={name}
+                                        className="example-btn"
+                                        onClick={() => loadExample(msg)}
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {bitmap && (
+                                <>
+                                    <h2 style={{ marginTop: '30px' }}>📊 Parse Sonucu</h2>
+                                    
+                                    <div className="stats">
+                                        <div className="stat-card">
+                                            <div className="stat-value">{mti}</div>
+                                            <div className="stat-label">MTI</div>
+                                        </div>
+                                        <div className="stat-card">
+                                            <div className="stat-value">{parsedFields.length}</div>
+                                            <div className="stat-label">Field Sayısı</div>
+                                        </div>
+                                        <div className="stat-card">
+                                            <div className="stat-value">{rawMessage.length}</div>
+                                            <div className="stat-label">Mesaj Uzunluğu</div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <strong style={{ fontSize: '14px', display: 'block', marginBottom: '8px' }}>
+                                            Bitmap (Binary):
+                                        </strong>
+                                        <div className="bitmap-display">
+                                            {bitmap.match(/.{1,8}/g).join(' ')}
+                                        </div>
+                                    </div>
+
+                                    <div className="fields-container scrollbar">
+                                        {parsedFields.map(field => (
+                                            <div key={field.number} className="field-row">
+                                                <div className="field-header">
+                                                    <span className="field-number">Field {field.number}</span>
+                                                    <span className="field-type">{field.type} ({field.format})</span>
+                                                </div>
+                                                <div className="field-name">{field.name}</div>
+                                                <div style={{ marginTop: '8px', fontFamily: 'Courier New', fontSize: '13px', color: '#212529' }}>
+                                                    {field.value}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="panel">
+                            <h2>🔨 Yeni Mesaj Oluştur</h2>
+
+                            <div className="input-group">
+                                <label>MTI (Message Type Indicator)</label>
+                                <input
+                                    type="text"
+                                    value={mti}
+                                    onChange={(e) => setMti(e.target.value.substring(0, 4))}
+                                    placeholder="0100, 0110, 0200, 0210..."
+                                    maxLength="4"
+                                    style={{ padding: '10px', borderRadius: '6px', border: '2px solid #dee2e6', fontFamily: 'Courier New', fontSize: '14px' }}
+                                />
+                            </div>
+
+                            <div className="input-group">
+                                <label>Field Ekle</label>
+                                <select
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            addField(parseInt(e.target.value));
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                    style={{ padding: '10px', borderRadius: '6px', border: '2px solid #dee2e6', fontSize: '14px', width: '100%' }}
+                                >
+                                    <option value="">-- Field Seçin --</option>
+                                    {availableFields.map(num => (
+                                        <option key={num} value={num}>
+                                            Field {num} - {fieldDefs[num].name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="fields-container scrollbar">
+                                {Object.keys(fields).sort((a, b) => a - b).map(fieldNum => {
+                                    const num = parseInt(fieldNum);
+                                    const fieldDef = fieldDefs[num];
+                                    return (
+                                        <div key={num} className="field-row">
+                                            <div className="field-header">
+                                                <span className="field-number">Field {num}</span>
+                                                <span className="field-type">{fieldDef.type} ({fieldDef.format})</span>
+                                            </div>
+                                            <div className="field-name">{fieldDef.name}</div>
+                                            <div className="field-input">
+                                                <input
+                                                    type="text"
+                                                    value={fields[num]}
+                                                    onChange={(e) => updateField(num, e.target.value)}
+                                                    placeholder={`Max: ${fieldDef.maxLen || fieldDef.len}`}
+                                                />
+                                                <button
+                                                    className="btn btn-secondary"
+                                                    style={{ padding: '8px 12px', fontSize: '12px' }}
+                                                    onClick={() => {
+                                                        const newFields = { ...fields };
+                                                        delete newFields[num];
+                                                        setFields(newFields);
+                                                    }}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="btn-group">
+                                <button className="btn btn-success" onClick={generateMessage}>
+                                    ⚙️ Mesaj Oluştur
+                                </button>
+                            </div>
+
+                            {generatedMessage && (
+                                <div style={{ marginTop: '20px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
+                                        📤 Oluşturulan Mesaj:
+                                    </label>
+                                    <textarea
+                                        value={generatedMessage}
+                                        readOnly
+                                        style={{ minHeight: '120px', background: '#f8f9fa', fontWeight: 'bold' }}
+                                        onClick={(e) => e.target.select()}
+                                    />
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ marginTop: '10px', width: '100%' }}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(generatedMessage);
+                                            setAlert({ type: 'success', message: '✓ Mesaj panoya kopyalandı!' });
+                                        }}
+                                    >
+                                        📋 Panoya Kopyala
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<ISO8583Parser />, document.getElementById('root'));
+    </script>
+</body>
+</html>
