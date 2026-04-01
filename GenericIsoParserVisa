@@ -67,14 +67,26 @@
             opacity: 0.9;
         }
 
-        .network-selector {
+        .controls-bar {
             background: #f8f9fa;
             padding: 20px 30px;
             border-bottom: 2px solid #e9ecef;
             display: flex;
-            gap: 15px;
+            gap: 30px;
             align-items: center;
             flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #495057;
         }
 
         .network-btn {
@@ -99,6 +111,28 @@
         .network-btn.active {
             border-color: #667eea;
             background: #667eea;
+            color: white;
+        }
+
+        .encoding-btn {
+            padding: 10px 20px;
+            border: 2px solid #dee2e6;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .encoding-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .encoding-btn.active {
+            border-color: #28a745;
+            background: #28a745;
             color: white;
         }
 
@@ -253,6 +287,17 @@
             margin-top: 4px;
         }
 
+        .field-encoding {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            background: #ffc107;
+            color: #000;
+            border-radius: 3px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+
         .field-input {
             display: flex;
             gap: 10px;
@@ -293,6 +338,17 @@
             word-break: break-all;
         }
 
+        .hex-display {
+            background: #1a1a2e;
+            color: #00d9ff;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
         .alert {
             padding: 12px 16px;
             border-radius: 8px;
@@ -316,6 +372,12 @@
             background: #d1ecf1;
             color: #0c5460;
             border-left: 4px solid #17a2b8;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
         }
 
         .stats {
@@ -417,6 +479,15 @@
         .footer-content {
             opacity: 0.9;
         }
+
+        .encoding-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -425,130 +496,131 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // ISO 8583 Field Definitions - Network specific (CORRECTED VISA)
+        // EBCDIC to ASCII conversion table
+        const EBCDIC_TO_ASCII = {
+            0x40: 0x20, 0x4A: 0xA2, 0x4B: 0x2E, 0x4C: 0x3C, 0x4D: 0x28, 0x4E: 0x2B, 0x4F: 0x7C,
+            0x50: 0x26, 0x5A: 0x21, 0x5B: 0x24, 0x5C: 0x2A, 0x5D: 0x29, 0x5E: 0x3B, 0x5F: 0xAC,
+            0x60: 0x2D, 0x61: 0x2F, 0x6A: 0xA6, 0x6B: 0x2C, 0x6C: 0x25, 0x6D: 0x5F, 0x6E: 0x3E,
+            0x6F: 0x3F, 0x79: 0x60, 0x7A: 0x3A, 0x7B: 0x23, 0x7C: 0x40, 0x7D: 0x27, 0x7E: 0x3D,
+            0x7F: 0x22, 0x81: 0x61, 0x82: 0x62, 0x83: 0x63, 0x84: 0x64, 0x85: 0x65, 0x86: 0x66,
+            0x87: 0x67, 0x88: 0x68, 0x89: 0x69, 0x91: 0x6A, 0x92: 0x6B, 0x93: 0x6C, 0x94: 0x6D,
+            0x95: 0x6E, 0x96: 0x6F, 0x97: 0x70, 0x98: 0x71, 0x99: 0x72, 0xA2: 0x73, 0xA3: 0x74,
+            0xA4: 0x75, 0xA5: 0x76, 0xA6: 0x77, 0xA7: 0x78, 0xA8: 0x79, 0xA9: 0x7A, 0xC1: 0x41,
+            0xC2: 0x42, 0xC3: 0x43, 0xC4: 0x44, 0xC5: 0x45, 0xC6: 0x46, 0xC7: 0x47, 0xC8: 0x48,
+            0xC9: 0x49, 0xD1: 0x4A, 0xD2: 0x4B, 0xD3: 0x4C, 0xD4: 0x4D, 0xD5: 0x4E, 0xD6: 0x4F,
+            0xD7: 0x50, 0xD8: 0x51, 0xD9: 0x52, 0xE2: 0x53, 0xE3: 0x54, 0xE4: 0x55, 0xE5: 0x56,
+            0xE6: 0x57, 0xE7: 0x58, 0xE8: 0x59, 0xE9: 0x5A, 0xF0: 0x30, 0xF1: 0x31, 0xF2: 0x32,
+            0xF3: 0x33, 0xF4: 0x34, 0xF5: 0x35, 0xF6: 0x36, 0xF7: 0x37, 0xF8: 0x38, 0xF9: 0x39
+        };
+
+        // ASCII to EBCDIC conversion table
+        const ASCII_TO_EBCDIC = Object.fromEntries(
+            Object.entries(EBCDIC_TO_ASCII).map(([k, v]) => [v, parseInt(k)])
+        );
+
+        // Helper functions
+        function ebcdicToAscii(hexStr) {
+            let result = '';
+            for (let i = 0; i < hexStr.length; i += 2) {
+                const ebcdicByte = parseInt(hexStr.substr(i, 2), 16);
+                const asciiByte = EBCDIC_TO_ASCII[ebcdicByte] || ebcdicByte;
+                result += String.fromCharCode(asciiByte);
+            }
+            return result;
+        }
+
+        function asciiToEbcdic(str) {
+            let result = '';
+            for (let i = 0; i < str.length; i++) {
+                const asciiCode = str.charCodeAt(i);
+                const ebcdicCode = ASCII_TO_EBCDIC[asciiCode] || asciiCode;
+                result += ebcdicCode.toString(16).padStart(2, '0').toUpperCase();
+            }
+            return result;
+        }
+
+        function asciiToHex(str) {
+            let result = '';
+            for (let i = 0; i < str.length; i++) {
+                result += str.charCodeAt(i).toString(16).padStart(2, '0').toUpperCase();
+            }
+            return result;
+        }
+
+        function hexToAscii(hexStr) {
+            let result = '';
+            for (let i = 0; i < hexStr.length; i += 2) {
+                result += String.fromCharCode(parseInt(hexStr.substr(i, 2), 16));
+            }
+            return result;
+        }
+
+        // ISO 8583 Field Definitions with encoding info
         const FIELD_DEFINITIONS = {
             VISA: {
-                2: { name: 'Primary Account Number (PAN)', type: 'LLVAR', format: 'n', maxLen: 19, desc: "Cardholder's card number" },
-                3: { name: 'Processing Code', type: 'FIXED', format: 'n', len: 6, desc: '00xxxx=Purchase, 01xxxx=Cash, 20xxxx=Refund' },
-                4: { name: 'Amount, Transaction', type: 'FIXED', format: 'n', len: 12, desc: 'Amount in minor units (cents/kuruş)' },
-                5: { name: 'Amount, Settlement', type: 'FIXED', format: 'n', len: 12, desc: 'Settlement amount' },
-                6: { name: 'Amount, Cardholder Billing', type: 'FIXED', format: 'n', len: 12, desc: 'Billing amount' },
-                7: { name: 'Transmission Date and Time', type: 'FIXED', format: 'n', len: 10, desc: 'MMDDhhmmss' },
-                9: { name: 'Conversion Rate, Settlement', type: 'FIXED', format: 'n', len: 8, desc: 'Settlement rate' },
-                10: { name: 'Conversion Rate, Cardholder Billing', type: 'FIXED', format: 'n', len: 8, desc: 'Billing rate' },
-                11: { name: 'System Trace Audit Number (STAN)', type: 'FIXED', format: 'n', len: 6, desc: 'Unique transaction ID' },
-                12: { name: 'Time, Local Transaction', type: 'FIXED', format: 'n', len: 6, desc: 'hhmmss' },
-                13: { name: 'Date, Local Transaction', type: 'FIXED', format: 'n', len: 4, desc: 'MMDD' },
-                14: { name: 'Date, Expiration', type: 'FIXED', format: 'n', len: 4, desc: 'YYMM - Card expiry' },
-                15: { name: 'Date, Settlement', type: 'FIXED', format: 'n', len: 4, desc: 'MMDD' },
-                18: { name: 'Merchant Type (MCC)', type: 'FIXED', format: 'n', len: 4, desc: 'Merchant Category Code' },
-                19: { name: 'Acquiring Institution Country Code', type: 'FIXED', format: 'n', len: 3, desc: 'ISO 3166' },
-                22: { name: 'POS Entry Mode', type: 'FIXED', format: 'n', len: 3, desc: '012=Chip, 021=Mag, 051=Manual' },
-                23: { name: 'Card Sequence Number', type: 'FIXED', format: 'n', len: 3, desc: 'Card sequence' },
-                25: { name: 'POS Condition Code', type: 'FIXED', format: 'n', len: 2, desc: '00=Normal, 01=Not present' },
-                26: { name: 'POS PIN Capture Code', type: 'FIXED', format: 'n', len: 2, desc: 'PIN capability' },
-                28: { name: 'Amount, Transaction Fee', type: 'FIXED', format: 'xn', len: 9, desc: 'C/D + amount' },
-                32: { name: 'Acquiring Institution ID', type: 'LLVAR', format: 'n', maxLen: 11, desc: 'Acquirer BIN' },
-                33: { name: 'Forwarding Institution ID', type: 'LLVAR', format: 'n', maxLen: 11, desc: 'Forwarder BIN' },
-                35: { name: 'Track 2 Data', type: 'LLVAR', format: 'z', maxLen: 37, desc: 'Magnetic stripe data' },
-                37: { name: 'Retrieval Reference Number', type: 'FIXED', format: 'an', len: 12, desc: 'Unique reference' },
-                38: { name: 'Authorization ID Response', type: 'FIXED', format: 'an', len: 6, desc: 'Auth code (response)' },
-                39: { name: 'Response Code', type: 'FIXED', format: 'an', len: 2, desc: '00=Approved, 05=Decline, 51=NSF' },
-                41: { name: 'Card Acceptor Terminal ID', type: 'FIXED', format: 'ans', len: 8, desc: 'Terminal ID' },
-                42: { name: 'Card Acceptor ID Code', type: 'FIXED', format: 'ans', len: 15, desc: 'Merchant ID' },
-                43: { name: 'Card Acceptor Name/Location', type: 'FIXED', format: 'ans', len: 40, desc: 'Merchant name & city' },
-                48: { name: 'Additional Data - Private', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'Network-specific' },
-                49: { name: 'Currency Code, Transaction', type: 'FIXED', format: 'n', len: 3, desc: 'ISO 4217 (840=USD, 949=TRY)' },
-                50: { name: 'Currency Code, Settlement', type: 'FIXED', format: 'n', len: 3, desc: 'Settlement currency' },
-                51: { name: 'Currency Code, Cardholder Billing', type: 'FIXED', format: 'n', len: 3, desc: 'Billing currency' },
-                52: { name: 'PIN Data', type: 'FIXED', format: 'b', len: 16, desc: 'Encrypted PIN (8 bytes hex)' },
-                53: { name: 'Security Related Control Info', type: 'FIXED', format: 'n', len: 16, desc: 'PIN encryption params' },
-                54: { name: 'Additional Amounts', type: 'LLLVAR', format: 'an', maxLen: 120, desc: 'Cashback, surcharge' },
-                55: { name: 'ICC System Related Data', type: 'LLLVAR', format: 'b', maxLen: 999, desc: 'EMV chip data (TLV)' },
-                59: { name: 'National POS Geographic Data', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'Terminal location' },
-                60: { name: 'Additional POS Information', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'POS capabilities' },
-                61: { name: 'Reserved for Visa Use', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'Visa private' },
-                62: { name: 'Reserved Private', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'Transaction details' },
-                63: { name: 'Reserved Private', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'Network data' },
-                90: { name: 'Original Data Elements', type: 'FIXED', format: 'n', len: 42, desc: 'For reversals' },
-                95: { name: 'Replacement Amounts', type: 'FIXED', format: 'an', len: 42, desc: 'Reversal amounts' },
-                100: { name: 'Receiving Institution ID', type: 'LLVAR', format: 'n', maxLen: 11, desc: 'Receiving BIN' },
-                102: { name: 'Account ID 1', type: 'LLVAR', format: 'ans', maxLen: 28, desc: 'From account' },
-                103: { name: 'Account ID 2', type: 'LLVAR', format: 'ans', maxLen: 28, desc: 'To account' }
+                2: { name: 'Primary Account Number (PAN)', type: 'LLVAR', format: 'n', maxLen: 19, encoding: 'ASCII', desc: "Cardholder's card number" },
+                3: { name: 'Processing Code', type: 'FIXED', format: 'n', len: 6, encoding: 'ASCII', desc: '00xxxx=Purchase, 01xxxx=Cash, 20xxxx=Refund' },
+                4: { name: 'Amount, Transaction', type: 'FIXED', format: 'n', len: 12, encoding: 'ASCII', desc: 'Amount in minor units (cents/kuruş)' },
+                7: { name: 'Transmission Date and Time', type: 'FIXED', format: 'n', len: 10, encoding: 'ASCII', desc: 'MMDDhhmmss' },
+                11: { name: 'System Trace Audit Number (STAN)', type: 'FIXED', format: 'n', len: 6, encoding: 'ASCII', desc: 'Unique transaction ID' },
+                12: { name: 'Time, Local Transaction', type: 'FIXED', format: 'n', len: 6, encoding: 'ASCII', desc: 'hhmmss' },
+                13: { name: 'Date, Local Transaction', type: 'FIXED', format: 'n', len: 4, encoding: 'ASCII', desc: 'MMDD' },
+                14: { name: 'Date, Expiration', type: 'FIXED', format: 'n', len: 4, encoding: 'ASCII', desc: 'YYMM - Card expiry' },
+                18: { name: 'Merchant Type (MCC)', type: 'FIXED', format: 'n', len: 4, encoding: 'ASCII', desc: 'Merchant Category Code' },
+                22: { name: 'POS Entry Mode', type: 'FIXED', format: 'n', len: 3, encoding: 'ASCII', desc: '012=Chip, 021=Mag, 051=Manual' },
+                25: { name: 'POS Condition Code', type: 'FIXED', format: 'n', len: 2, encoding: 'ASCII', desc: '00=Normal, 01=Not present' },
+                32: { name: 'Acquiring Institution ID', type: 'LLVAR', format: 'n', maxLen: 11, encoding: 'ASCII', desc: 'Acquirer BIN' },
+                35: { name: 'Track 2 Data', type: 'LLVAR', format: 'z', maxLen: 37, encoding: 'ASCII', desc: 'Magnetic stripe data' },
+                37: { name: 'Retrieval Reference Number', type: 'FIXED', format: 'an', len: 12, encoding: 'ASCII', desc: 'Unique reference' },
+                38: { name: 'Authorization ID Response', type: 'FIXED', format: 'an', len: 6, encoding: 'ASCII', desc: 'Auth code (response)' },
+                39: { name: 'Response Code', type: 'FIXED', format: 'an', len: 2, encoding: 'ASCII', desc: '00=Approved, 05=Decline, 51=NSF' },
+                41: { name: 'Card Acceptor Terminal ID', type: 'FIXED', format: 'ans', len: 8, encoding: 'EBCDIC', desc: 'Terminal ID (EBCDIC!)' },
+                42: { name: 'Card Acceptor ID Code', type: 'FIXED', format: 'ans', len: 15, encoding: 'EBCDIC', desc: 'Merchant ID (EBCDIC!)' },
+                43: { name: 'Card Acceptor Name/Location', type: 'FIXED', format: 'ans', len: 40, encoding: 'EBCDIC', desc: 'Merchant name (EBCDIC!)' },
+                48: { name: 'Additional Data - Private', type: 'LLLVAR', format: 'ans', maxLen: 999, encoding: 'ASCII', desc: 'Network-specific' },
+                49: { name: 'Currency Code, Transaction', type: 'FIXED', format: 'n', len: 3, encoding: 'ASCII', desc: 'ISO 4217 (840=USD, 949=TRY)' },
+                52: { name: 'PIN Data', type: 'FIXED', format: 'b', len: 16, encoding: 'BINARY', desc: 'Encrypted PIN (binary hex)' },
+                55: { name: 'ICC System Related Data', type: 'LLLVAR', format: 'b', maxLen: 999, encoding: 'BINARY', desc: 'EMV chip data (binary)' },
+                90: { name: 'Original Data Elements', type: 'FIXED', format: 'n', len: 42, encoding: 'ASCII', desc: 'For reversals' },
+                95: { name: 'Replacement Amounts', type: 'FIXED', format: 'an', len: 42, encoding: 'ASCII', desc: 'Reversal amounts' }
             },
             MASTERCARD: {
-                2: { name: 'Primary Account Number', type: 'LLVAR', format: 'n', maxLen: 19, desc: 'PAN' },
-                3: { name: 'Processing Code', type: 'FIXED', format: 'n', len: 6, desc: 'Transaction type' },
-                4: { name: 'Amount Transaction', type: 'FIXED', format: 'n', len: 12, desc: 'Minor units' },
-                7: { name: 'Transmission Date Time', type: 'FIXED', format: 'n', len: 10, desc: 'MMDDhhmmss' },
-                11: { name: 'STAN', type: 'FIXED', format: 'n', len: 6, desc: 'Trace number' },
-                12: { name: 'Time Local Transaction', type: 'FIXED', format: 'n', len: 6, desc: 'hhmmss' },
-                13: { name: 'Date Local Transaction', type: 'FIXED', format: 'n', len: 4, desc: 'MMDD' },
-                14: { name: 'Date Expiration', type: 'FIXED', format: 'n', len: 4, desc: 'YYMM' },
-                18: { name: 'Merchant Type', type: 'FIXED', format: 'n', len: 4, desc: 'MCC' },
-                22: { name: 'POS Entry Mode', type: 'FIXED', format: 'n', len: 3, desc: 'Entry mode' },
-                25: { name: 'POS Condition Code', type: 'FIXED', format: 'n', len: 2, desc: 'Condition' },
-                32: { name: 'Acquiring Institution ID', type: 'LLVAR', format: 'n', maxLen: 11, desc: 'Acquirer' },
-                35: { name: 'Track 2 Data', type: 'LLVAR', format: 'z', maxLen: 37, desc: 'Track 2' },
-                37: { name: 'Retrieval Reference Number', type: 'FIXED', format: 'an', len: 12, desc: 'RRN' },
-                38: { name: 'Authorization ID', type: 'FIXED', format: 'an', len: 6, desc: 'Auth code' },
-                39: { name: 'Response Code', type: 'FIXED', format: 'an', len: 2, desc: 'Response' },
-                41: { name: 'Terminal ID', type: 'FIXED', format: 'ans', len: 8, desc: 'Terminal' },
-                42: { name: 'Merchant ID', type: 'FIXED', format: 'ans', len: 15, desc: 'Merchant' },
-                43: { name: 'Card Acceptor Name/Location', type: 'FIXED', format: 'ans', len: 40, desc: 'Name/Location' },
-                48: { name: 'Additional Data', type: 'LLLVAR', format: 'ans', maxLen: 999, desc: 'Additional' },
-                49: { name: 'Currency Code', type: 'FIXED', format: 'n', len: 3, desc: 'Currency' },
-                52: { name: 'PIN Block', type: 'FIXED', format: 'b', len: 16, desc: 'PIN' },
-                55: { name: 'ICC Data', type: 'LLLVAR', format: 'b', maxLen: 999, desc: 'EMV' },
-                90: { name: 'Original Data Elements', type: 'FIXED', format: 'n', len: 42, desc: 'Original' },
-                95: { name: 'Replacement Amounts', type: 'FIXED', format: 'an', len: 42, desc: 'Replace' }
+                2: { name: 'Primary Account Number', type: 'LLVAR', format: 'n', maxLen: 19, encoding: 'ASCII', desc: 'PAN' },
+                3: { name: 'Processing Code', type: 'FIXED', format: 'n', len: 6, encoding: 'ASCII', desc: 'Transaction type' },
+                4: { name: 'Amount Transaction', type: 'FIXED', format: 'n', len: 12, encoding: 'ASCII', desc: 'Minor units' },
+                41: { name: 'Terminal ID', type: 'FIXED', format: 'ans', len: 8, encoding: 'EBCDIC', desc: 'Terminal (EBCDIC)' },
+                42: { name: 'Merchant ID', type: 'FIXED', format: 'ans', len: 15, encoding: 'EBCDIC', desc: 'Merchant (EBCDIC)' },
+                43: { name: 'Card Acceptor Name/Location', type: 'FIXED', format: 'ans', len: 40, encoding: 'EBCDIC', desc: 'Name (EBCDIC)' }
             },
             BKM: {
-                2: { name: 'Kart Numarası', type: 'LLVAR', format: 'n', maxLen: 19, desc: 'PAN' },
-                3: { name: 'İşlem Kodu', type: 'FIXED', format: 'n', len: 6, desc: 'İşlem tipi' },
-                4: { name: 'İşlem Tutarı', type: 'FIXED', format: 'n', len: 12, desc: 'Kuruş cinsinden' },
-                7: { name: 'İletim Tarih Saat', type: 'FIXED', format: 'n', len: 10, desc: 'MMDDhhmmss' },
-                11: { name: 'STAN', type: 'FIXED', format: 'n', len: 6, desc: 'İşlem no' },
-                12: { name: 'Yerel İşlem Saati', type: 'FIXED', format: 'n', len: 6, desc: 'hhmmss' },
-                13: { name: 'Yerel İşlem Tarihi', type: 'FIXED', format: 'n', len: 4, desc: 'MMDD' },
-                14: { name: 'Son Kullanma Tarihi', type: 'FIXED', format: 'n', len: 4, desc: 'YYMM' },
-                18: { name: 'Üye İşyeri Tipi (MCC)', type: 'FIXED', format: 'n', len: 4, desc: 'MCC' },
-                22: { name: 'POS Giriş Modu', type: 'FIXED', format: 'n', len: 3, desc: 'Giriş' },
-                25: { name: 'POS Durum Kodu', type: 'FIXED', format: 'n', len: 2, desc: 'Durum' },
-                32: { name: 'Alıcı Kurum Kodu', type: 'LLVAR', format: 'n', maxLen: 11, desc: 'Banka' },
-                35: { name: 'Track 2 Verisi', type: 'LLVAR', format: 'z', maxLen: 37, desc: 'Manyetik' },
-                37: { name: 'Referans Numarası', type: 'FIXED', format: 'an', len: 12, desc: 'RRN' },
-                38: { name: 'Onay Kodu', type: 'FIXED', format: 'an', len: 6, desc: 'Onay' },
-                39: { name: 'Yanıt Kodu', type: 'FIXED', format: 'an', len: 2, desc: 'Yanıt' },
-                41: { name: 'Terminal ID', type: 'FIXED', format: 'ans', len: 8, desc: 'Terminal' },
-                42: { name: 'Üye İşyeri Numarası', type: 'FIXED', format: 'ans', len: 15, desc: 'İşyeri' },
-                43: { name: 'Üye İşyeri Adı/Lokasyon', type: 'FIXED', format: 'ans', len: 40, desc: 'Ad/Yer' },
-                49: { name: 'Para Birimi Kodu', type: 'FIXED', format: 'n', len: 3, desc: '949=TRY' },
-                52: { name: 'PIN Blok', type: 'FIXED', format: 'b', len: 16, desc: 'PIN' },
-                55: { name: 'EMV (Chip) Verisi', type: 'LLLVAR', format: 'b', maxLen: 999, desc: 'Chip' },
-                90: { name: 'Orijinal Veri Elemanları', type: 'FIXED', format: 'n', len: 42, desc: 'Orijinal' },
-                95: { name: 'Düzeltme Tutarları', type: 'FIXED', format: 'an', len: 42, desc: 'Düzeltme' }
+                2: { name: 'Kart Numarası', type: 'LLVAR', format: 'n', maxLen: 19, encoding: 'ASCII', desc: 'PAN' },
+                3: { name: 'İşlem Kodu', type: 'FIXED', format: 'n', len: 6, encoding: 'ASCII', desc: 'İşlem tipi' },
+                4: { name: 'İşlem Tutarı', type: 'FIXED', format: 'n', len: 12, encoding: 'ASCII', desc: 'Kuruş cinsinden' },
+                41: { name: 'Terminal ID', type: 'FIXED', format: 'ans', len: 8, encoding: 'EBCDIC', desc: 'Terminal (EBCDIC)' },
+                42: { name: 'Üye İşyeri Numarası', type: 'FIXED', format: 'ans', len: 15, encoding: 'EBCDIC', desc: 'İşyeri (EBCDIC)' },
+                43: { name: 'Üye İşyeri Adı/Lokasyon', type: 'FIXED', format: 'ans', len: 40, encoding: 'EBCDIC', desc: 'Ad (EBCDIC)' }
             }
         };
 
-        // Real VISA Authorization Request Example
+        // Example messages (ASCII representation)
         const EXAMPLE_MESSAGES = {
             VISA: {
-                'Authorization Request (0100) - Real Example': '0100723405412AC180040000000000000016453212345678901000000000000010000021513453012345613453002152512541105100081234560012345678901TERM0001123456789012345TEST MERCHANT       ISTANBUL        TR94909950500000008000000',
-                'Authorization Response (0110)': '011040000000200000001612345678901234560000001000001215123456120006120006011212000199990512123456780012345678TEST MERCHANT'
+                'Authorization Request (0100) - ASCII': '0100723405412AC180040000000000000016453212345678901000000000000010000021513453012345613453002152512541105100081234560012345678901TERM0001123456789012345TEST MERCHANT       ISTANBUL        TR94909950500000008000000',
+                'Authorization Request (0100) - EBCDIC (F41-43)': '0100723405412AC180040000000000000016453212345678901000000000000010000021513453012345613453002152512541105100081234560012345678901E3C5D9D4F0F0F0F1F1F2F3F4F5F6F7F8F9F0F1F2F3F4F5E3C5E2E340D4C5D9C3C8C1D5E340404040404040C9E2E3C1D5C2E4D34040404040404040E3D994909950500000008000000'
             },
             MASTERCARD: {
-                'Purchase Request (0200)': '02004000000000000000161234567890123456000000050000121512345612000612000601121200019999051212345678TEST MERCHANT',
-                'Purchase Response (0210)': '021040000000200000001612345678901234560000000500001215123456120006120006011212000199990512123456780012345678TEST MERCHANT'
+                'Purchase Request (0200) - ASCII': '02004000000000000000161234567890123456000000050000121512345612000612000601121200019999TERM0001123456789012345TEST MERCHANT',
+                'Purchase Request (0200) - EBCDIC (F41-43)': '02004000000000000000161234567890123456000000050000121512345612000612000601121200019999E3C5D9D4F0F0F0F1F1F2F3F4F5F6F7F8F9F0F1F2F3F4F5E3C5E2E340D4C5D9C3C8C1D5E3'
             },
             BKM: {
-                'Satış İsteği (0200)': '02004000000000000000161234567890123456000000020000121512345612000612000601121200019999949121234567800TEST ISYERI',
-                'Satış Yanıtı (0210)': '021040000000200000001612345678901234560000000200001215123456120006120006011212000199999491212345678001234567800TEST ISYERI'
+                'Satış İsteği (0200) - ASCII': '02004000000000000000161234567890123456000000020000121512345612000612000601121200019999949TERM0001123456789012345TEST ISYERI',
+                'Satış İsteği (0200) - EBCDIC (F41-43)': '02004000000000000000161234567890123456000000020000121512345612000612000601121200019999949E3C5D9D4F0F0F0F1F1F2F3F4F5F6F7F8F9F0F1F2F3F4F5E3C5E2E340C9E2E8C5D9C9'
             }
         };
 
         function ISO8583Parser() {
             const [network, setNetwork] = useState('VISA');
+            const [encoding, setEncoding] = useState('ASCII'); // ASCII or EBCDIC
             const [rawMessage, setRawMessage] = useState('');
             const [mti, setMti] = useState('');
             const [bitmap, setBitmap] = useState('');
@@ -563,7 +635,7 @@
                         throw new Error('Mesaj çok kısa! Minimum 20 karakter gerekli.');
                     }
 
-                    // MTI parse
+                    // MTI parse (always ASCII)
                     const messageMti = rawMessage.substring(0, 4);
                     setMti(messageMti);
 
@@ -584,32 +656,87 @@
                             if (!fieldDef) continue;
 
                             let fieldValue = '';
+                            let fieldValueHex = '';
                             let fieldLength = 0;
+                            const fieldEncoding = fieldDef.encoding || 'ASCII';
 
                             if (fieldDef.type === 'FIXED') {
                                 fieldLength = fieldDef.len;
-                                if (position + fieldLength <= rawMessage.length) {
-                                    fieldValue = rawMessage.substring(position, position + fieldLength);
-                                    position += fieldLength;
+                                
+                                if (fieldEncoding === 'EBCDIC' && encoding === 'EBCDIC') {
+                                    // EBCDIC field - length is in hex chars (2 hex chars = 1 byte)
+                                    const hexLen = fieldLength * 2;
+                                    if (position + hexLen <= rawMessage.length) {
+                                        fieldValueHex = rawMessage.substring(position, position + hexLen);
+                                        fieldValue = ebcdicToAscii(fieldValueHex);
+                                        position += hexLen;
+                                    }
+                                } else if (fieldEncoding === 'BINARY' || fieldDef.format === 'b') {
+                                    // Binary field - already in hex
+                                    if (position + fieldLength <= rawMessage.length) {
+                                        fieldValueHex = rawMessage.substring(position, position + fieldLength);
+                                        fieldValue = '[HEX: ' + fieldValueHex + ']';
+                                        position += fieldLength;
+                                    }
+                                } else {
+                                    // ASCII field
+                                    if (position + fieldLength <= rawMessage.length) {
+                                        fieldValue = rawMessage.substring(position, position + fieldLength);
+                                        fieldValueHex = asciiToHex(fieldValue);
+                                        position += fieldLength;
+                                    }
                                 }
                             } else if (fieldDef.type === 'LLVAR') {
+                                // Length indicator (always ASCII)
                                 if (position + 2 <= rawMessage.length) {
                                     const lenIndicator = parseInt(rawMessage.substring(position, position + 2));
                                     position += 2;
-                                    if (position + lenIndicator <= rawMessage.length) {
-                                        fieldValue = rawMessage.substring(position, position + lenIndicator);
-                                        position += lenIndicator;
-                                        fieldLength = lenIndicator;
+                                    
+                                    if (fieldEncoding === 'EBCDIC' && encoding === 'EBCDIC') {
+                                        const hexLen = lenIndicator * 2;
+                                        if (position + hexLen <= rawMessage.length) {
+                                            fieldValueHex = rawMessage.substring(position, position + hexLen);
+                                            fieldValue = ebcdicToAscii(fieldValueHex);
+                                            position += hexLen;
+                                            fieldLength = lenIndicator;
+                                        }
+                                    } else {
+                                        if (position + lenIndicator <= rawMessage.length) {
+                                            fieldValue = rawMessage.substring(position, position + lenIndicator);
+                                            fieldValueHex = asciiToHex(fieldValue);
+                                            position += lenIndicator;
+                                            fieldLength = lenIndicator;
+                                        }
                                     }
                                 }
                             } else if (fieldDef.type === 'LLLVAR') {
+                                // Length indicator (always ASCII)
                                 if (position + 3 <= rawMessage.length) {
                                     const lenIndicator = parseInt(rawMessage.substring(position, position + 3));
                                     position += 3;
-                                    if (position + lenIndicator <= rawMessage.length) {
-                                        fieldValue = rawMessage.substring(position, position + lenIndicator);
-                                        position += lenIndicator;
-                                        fieldLength = lenIndicator;
+                                    
+                                    if (fieldEncoding === 'BINARY' || fieldDef.format === 'b') {
+                                        if (position + lenIndicator <= rawMessage.length) {
+                                            fieldValueHex = rawMessage.substring(position, position + lenIndicator);
+                                            fieldValue = '[HEX: ' + fieldValueHex + ']';
+                                            position += lenIndicator;
+                                            fieldLength = lenIndicator;
+                                        }
+                                    } else if (fieldEncoding === 'EBCDIC' && encoding === 'EBCDIC') {
+                                        const hexLen = lenIndicator * 2;
+                                        if (position + hexLen <= rawMessage.length) {
+                                            fieldValueHex = rawMessage.substring(position, position + hexLen);
+                                            fieldValue = ebcdicToAscii(fieldValueHex);
+                                            position += hexLen;
+                                            fieldLength = lenIndicator;
+                                        }
+                                    } else {
+                                        if (position + lenIndicator <= rawMessage.length) {
+                                            fieldValue = rawMessage.substring(position, position + lenIndicator);
+                                            fieldValueHex = asciiToHex(fieldValue);
+                                            position += lenIndicator;
+                                            fieldLength = lenIndicator;
+                                        }
                                     }
                                 }
                             }
@@ -619,8 +746,10 @@
                                 number: i,
                                 name: fieldDef.name,
                                 value: fieldValue,
+                                valueHex: fieldValueHex,
                                 type: fieldDef.type,
                                 format: fieldDef.format,
+                                encoding: fieldEncoding,
                                 description: fieldDef.desc,
                                 length: fieldLength
                             });
@@ -629,7 +758,7 @@
 
                     setFields(parsedData);
                     setParsedFields(fieldsArray);
-                    setAlert({ type: 'success', message: `✓ Mesaj başarıyla parse edildi! ${fieldsArray.length} field bulundu. (${network} network)` });
+                    setAlert({ type: 'success', message: `✓ Mesaj başarıyla parse edildi! ${fieldsArray.length} field bulundu. (${network} / ${encoding})` });
 
                 } catch (error) {
                     setAlert({ type: 'error', message: `✗ Parse hatası: ${error.message}` });
@@ -657,20 +786,43 @@
                     for (const fieldNum of fieldNumbers) {
                         const fieldDef = fieldDefs[fieldNum];
                         const fieldValue = fields[fieldNum] || '';
+                        const fieldEncoding = fieldDef.encoding || 'ASCII';
 
                         if (fieldDef.type === 'FIXED') {
-                            message += fieldValue.padEnd(fieldDef.len, ' ').substring(0, fieldDef.len);
+                            const paddedValue = fieldValue.padEnd(fieldDef.len, ' ').substring(0, fieldDef.len);
+                            
+                            if (fieldEncoding === 'EBCDIC' && encoding === 'EBCDIC') {
+                                message += asciiToEbcdic(paddedValue);
+                            } else if (fieldEncoding === 'BINARY' || fieldDef.format === 'b') {
+                                message += paddedValue; // Already hex
+                            } else {
+                                message += paddedValue; // ASCII
+                            }
                         } else if (fieldDef.type === 'LLVAR') {
                             const len = fieldValue.length.toString().padStart(2, '0');
-                            message += len + fieldValue;
+                            message += len;
+                            
+                            if (fieldEncoding === 'EBCDIC' && encoding === 'EBCDIC') {
+                                message += asciiToEbcdic(fieldValue);
+                            } else {
+                                message += fieldValue;
+                            }
                         } else if (fieldDef.type === 'LLLVAR') {
                             const len = fieldValue.length.toString().padStart(3, '0');
-                            message += len + fieldValue;
+                            message += len;
+                            
+                            if (fieldEncoding === 'BINARY' || fieldDef.format === 'b') {
+                                message += fieldValue; // Already hex
+                            } else if (fieldEncoding === 'EBCDIC' && encoding === 'EBCDIC') {
+                                message += asciiToEbcdic(fieldValue);
+                            } else {
+                                message += fieldValue;
+                            }
                         }
                     }
 
                     setGeneratedMessage(message);
-                    setAlert({ type: 'success', message: '✓ Mesaj başarıyla oluşturuldu!' });
+                    setAlert({ type: 'success', message: `✓ Mesaj başarıyla oluşturuldu! (${encoding} encoding)` });
 
                 } catch (error) {
                     setAlert({ type: 'error', message: `✗ Oluşturma hatası: ${error.message}` });
@@ -730,7 +882,7 @@
                     <div className="header">
                         <div className="header-left">
                             <h1>🏦 ISO 8583 Message Parser & Builder</h1>
-                            <p>Visa, Mastercard, BKM mesajlarını parse edin ve yeni mesajlar oluşturun</p>
+                            <p>Visa, Mastercard, BKM - ASCII/EBCDIC Support</p>
                         </div>
                         <div className="header-right">
                             <h2>Switch & Takas</h2>
@@ -738,29 +890,47 @@
                         </div>
                     </div>
 
-                    <div className="network-selector">
-                        <strong>Network Seçimi:</strong>
-                        <button
-                            className={`network-btn ${network === 'VISA' ? 'active' : ''}`}
-                            onClick={() => setNetwork('VISA')}
-                        >
-                            <div className="network-icon visa"></div>
-                            VISA
-                        </button>
-                        <button
-                            className={`network-btn ${network === 'MASTERCARD' ? 'active' : ''}`}
-                            onClick={() => setNetwork('MASTERCARD')}
-                        >
-                            <div className="network-icon mastercard"></div>
-                            Mastercard
-                        </button>
-                        <button
-                            className={`network-btn ${network === 'BKM' ? 'active' : ''}`}
-                            onClick={() => setNetwork('BKM')}
-                        >
-                            <div className="network-icon bkm"></div>
-                            BKM
-                        </button>
+                    <div className="controls-bar">
+                        <div className="control-group">
+                            <span className="control-label">Network:</span>
+                            <button
+                                className={`network-btn ${network === 'VISA' ? 'active' : ''}`}
+                                onClick={() => setNetwork('VISA')}
+                            >
+                                <div className="network-icon visa"></div>
+                                VISA
+                            </button>
+                            <button
+                                className={`network-btn ${network === 'MASTERCARD' ? 'active' : ''}`}
+                                onClick={() => setNetwork('MASTERCARD')}
+                            >
+                                <div className="network-icon mastercard"></div>
+                                Mastercard
+                            </button>
+                            <button
+                                className={`network-btn ${network === 'BKM' ? 'active' : ''}`}
+                                onClick={() => setNetwork('BKM')}
+                            >
+                                <div className="network-icon bkm"></div>
+                                BKM
+                            </button>
+                        </div>
+
+                        <div className="control-group">
+                            <span className="control-label">Encoding:</span>
+                            <button
+                                className={`encoding-btn ${encoding === 'ASCII' ? 'active' : ''}`}
+                                onClick={() => setEncoding('ASCII')}
+                            >
+                                ASCII
+                            </button>
+                            <button
+                                className={`encoding-btn ${encoding === 'EBCDIC' ? 'active' : ''}`}
+                                onClick={() => setEncoding('EBCDIC')}
+                            >
+                                EBCDIC
+                            </button>
+                        </div>
                     </div>
 
                     {alert && (
@@ -771,16 +941,26 @@
                         </div>
                     )}
 
+                    {encoding === 'EBCDIC' && (
+                        <div style={{ padding: '0 30px 20px 30px' }}>
+                            <div className="encoding-info">
+                                ⚠️ <strong>EBCDIC Mode:</strong> F41 (Terminal ID), F42 (Merchant ID), F43 (Merchant Name/Location) EBCDIC hex formatında parse edilecek/oluşturulacak.
+                            </div>
+                        </div>
+                    )}
+
                     <div className="content">
                         <div className="panel panel-left">
                             <h2>📥 Parse Mesaj</h2>
                             
                             <div className="input-group">
-                                <label>ISO 8583 Mesajı (Hex/ASCII)</label>
+                                <label>ISO 8583 Mesajı (Hex/ASCII/EBCDIC)</label>
                                 <textarea
                                     value={rawMessage}
                                     onChange={(e) => setRawMessage(e.target.value)}
-                                    placeholder="Örnek: 01004000000000000000161234567890123456..."
+                                    placeholder={encoding === 'EBCDIC' ? 
+                                        "EBCDIC örnek: 0100...E3C5D9D4F0F0F0F1..." : 
+                                        "ASCII örnek: 0100...TERM0001..."}
                                 />
                             </div>
 
@@ -794,8 +974,8 @@
                             </div>
 
                             <div className="example-messages">
-                                <h4>📋 Örnek Mesajlar ({network})</h4>
-                                {Object.entries(EXAMPLE_MESSAGES[network]).map(([name, msg]) => (
+                                <h4>📋 Örnek Mesajlar ({network} - {encoding})</h4>
+                                {Object.entries(EXAMPLE_MESSAGES[network] || {}).map(([name, msg]) => (
                                     <button
                                         key={name}
                                         className="example-btn"
@@ -838,7 +1018,15 @@
                                         {parsedFields.map(field => (
                                             <div key={field.number} className="field-row">
                                                 <div className="field-header">
-                                                    <span className="field-number">Field {field.number}</span>
+                                                    <span className="field-number">
+                                                        Field {field.number}
+                                                        {field.encoding === 'EBCDIC' && (
+                                                            <span className="field-encoding">EBCDIC</span>
+                                                        )}
+                                                        {field.encoding === 'BINARY' && (
+                                                            <span className="field-encoding">BINARY</span>
+                                                        )}
+                                                    </span>
                                                     <span className="field-type">{field.type} ({field.format})</span>
                                                 </div>
                                                 <div className="field-name">{field.name}</div>
@@ -846,8 +1034,13 @@
                                                     <div className="field-description">{field.description}</div>
                                                 )}
                                                 <div style={{ marginTop: '8px', fontFamily: 'Courier New', fontSize: '13px', color: '#212529', wordBreak: 'break-all' }}>
-                                                    {field.value}
+                                                    <strong>ASCII:</strong> {field.value}
                                                 </div>
+                                                {field.valueHex && (
+                                                    <div className="hex-display">
+                                                        <strong>HEX:</strong> {field.valueHex}
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -884,7 +1077,7 @@
                                     <option value="">-- Field Seçin --</option>
                                     {availableFields.map(num => (
                                         <option key={num} value={num}>
-                                            Field {num} - {fieldDefs[num].name}
+                                            Field {num} - {fieldDefs[num].name} {fieldDefs[num].encoding === 'EBCDIC' ? '(EBCDIC)' : ''}
                                         </option>
                                     ))}
                                 </select>
@@ -897,7 +1090,12 @@
                                     return (
                                         <div key={num} className="field-row">
                                             <div className="field-header">
-                                                <span className="field-number">Field {num}</span>
+                                                <span className="field-number">
+                                                    Field {num}
+                                                    {fieldDef.encoding === 'EBCDIC' && (
+                                                        <span className="field-encoding">EBCDIC</span>
+                                                    )}
+                                                </span>
                                                 <span className="field-type">{fieldDef.type} ({fieldDef.format})</span>
                                             </div>
                                             <div className="field-name">{fieldDef.name}</div>
@@ -909,7 +1107,7 @@
                                                     type="text"
                                                     value={fields[num]}
                                                     onChange={(e) => updateField(num, e.target.value)}
-                                                    placeholder={`Max: ${fieldDef.maxLen || fieldDef.len}`}
+                                                    placeholder={`Max: ${fieldDef.maxLen || fieldDef.len}` + (fieldDef.encoding === 'EBCDIC' && encoding === 'EBCDIC' ? ' (ASCII girişi, EBCDIC hex çıkışı)' : '')}
                                                 />
                                                 <button
                                                     className="btn btn-secondary"
@@ -937,7 +1135,7 @@
                             {generatedMessage && (
                                 <div style={{ marginTop: '20px' }}>
                                     <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600' }}>
-                                        📤 Oluşturulan Mesaj:
+                                        📤 Oluşturulan Mesaj ({encoding}):
                                     </label>
                                     <textarea
                                         value={generatedMessage}
@@ -962,7 +1160,7 @@
 
                     <div className="footer">
                         <div className="footer-content">
-                            © 2025 Yapı Kredi Teknoloji - Switch & Takas Ekibi - ISO 8583 Message Parser v2.0
+                            © 2025 Yapı Kredi Teknoloji - Switch & Takas Ekibi - ISO 8583 Parser v2.1 (ASCII/EBCDIC)
                         </div>
                     </div>
                 </div>
