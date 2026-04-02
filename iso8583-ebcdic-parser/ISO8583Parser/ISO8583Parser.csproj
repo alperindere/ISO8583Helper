@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>ISO8583Parser</AssemblyName>
+    <RootNamespace>ISO8583Parser</RootNamespace>
+    <Authors>Switch &amp; Takas Ekibi</Authors>
+    <Company>Yapı Kredi Teknoloji</Company>
+    <Product>ISO 8583 Message Parser - EBCDIC/ASCII</Product>
+    <Description>VISA, Mastercard, BKM ISO 8583 mesajlarını EBCDIC/ASCII formatında parse eden araç. Oracle dump desteği ile.</Description>
+    <Copyright>© 2025 Yapı Kredi Teknoloji - Switch &amp; Takas</Copyright>
+    <Version>2.0.0</Version>
+  </PropertyGroup>
+
+</Project>
