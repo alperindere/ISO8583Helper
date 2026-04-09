@@ -1,0 +1,592 @@
+/*
+ * LMK Key Utility
+ * ---------------
+ * Clear anahtar → Variant (LMK altında) ve TR-31 Key Block formatına çevirir.
+ * Triple DES Double Length (2TDEA / 16 byte) anahtarlar için.
+ *
+ * UYARI: Bu araç yalnızca test/geliştirme ortamında kullanılmalıdır.
+ *        Production'da clear key işleme HSM üzerinde yapılmalıdır.
+ *
+ * Kullanım:
+ *   dotnet run
+ *   veya Visual Studio'da Console App olarak çalıştırın.
+ *   .NET 6+ gerektirir.
+ */
+
+using System;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace LmkKeyUtility
+{
+    // ─────────────────────────────────────────────────────────────
+    // Thales payShield tarzı LMK variant değerleri (çift uzunluk)
+    // Her key type için sol yarı (byte[0]) ve sağ yarı (byte[8]) XOR değerleri
+    // ─────────────────────────────────────────────────────────────
+    public enum KeyType
+    {
+        PinEncryptionKey,       // ZPK  - variant 00/00
+        MacKey,                 // ZMK/MAK - variant 00/04
+        DataEncryptionKey,      // ZEK  - variant 00/08
+        KeyEncryptionKey,       // ZKA  - variant 00/0C
+        ResponseMacKey,         // variant 00/10
+        PinVerificationKey,     // PVK  - variant 00/14
+        CvkKey,                 // CVK  - variant 00/18
+        Rsv,                    // variant 00/1C
+    }
+
+    public static class VariantValues
+    {
+        // [keyType] = (leftHalfXor, rightHalfXor)
+        // Sol yarı byte 0, sağ yarı byte 8 üzerinde uygulanır.
+        // Thales double-length variant şeması (LMK pair 04-05 örneği)
+        public static readonly (byte Left, byte Right)[] Xors = new[]
+        {
+            (0x00, 0x00), // PinEncryptionKey
+            (0x00, 0x04), // MacKey
+            (0x00, 0x08), // DataEncryptionKey
+            (0x00, 0x0C), // KeyEncryptionKey
+            (0x00, 0x10), // ResponseMacKey
+            (0x00, 0x14), // PinVerificationKey
+            (0x00, 0x18), // CvkKey
+            (0x00, 0x1C), // Rsv
+        };
+
+        public static string Label(KeyType kt) => kt switch
+        {
+            KeyType.PinEncryptionKey   => "PIN Encryption Key (ZPK)",
+            KeyType.MacKey             => "MAC Key (ZMK/MAK)",
+            KeyType.DataEncryptionKey  => "Data Encryption Key (ZEK)",
+            KeyType.KeyEncryptionKey   => "Key Encryption Key (ZKA)",
+            KeyType.ResponseMacKey     => "Response MAC Key",
+            KeyType.PinVerificationKey => "PIN Verification Key (PVK)",
+            KeyType.CvkKey             => "Card Verification Key (CVK)",
+            KeyType.Rsv                => "Reserved",
+            _                          => kt.ToString()
+        };
+
+        // TR-31 Key Usage kodu
+        public static string TR31Usage(KeyType kt) => kt switch
+        {
+            KeyType.PinEncryptionKey   => "P0",
+            KeyType.MacKey             => "M0",
+            KeyType.DataEncryptionKey  => "D0",
+            KeyType.KeyEncryptionKey   => "K0",
+            KeyType.ResponseMacKey     => "M1",
+            KeyType.PinVerificationKey => "V0",
+            KeyType.CvkKey             => "C0",
+            KeyType.Rsv                => "00",
+            _                          => "00"
+        };
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // DES / Triple DES yardımcıları
+    // ─────────────────────────────────────────────────────────────
+    public static class DesHelper
+    {
+        /// <summary>Triple DES ECB ile tek blok (8 byte) şifrele.</summary>
+        public static byte[] EncryptBlock(byte[] key16, byte[] block8)
+        {
+            // 2TDEA → 3TDEA: K1 K2 K1
+            byte[] key24 = new byte[24];
+            Array.Copy(key16, 0, key24, 0, 16);
+            Array.Copy(key16, 0, key24, 16, 8);
+
+            using var des = TripleDES.Create();
+            des.Key     = key24;
+            des.Mode    = CipherMode.ECB;
+            des.Padding = PaddingMode.None;
+            using var enc = des.CreateEncryptor();
+            byte[] result = new byte[8];
+            enc.TransformBlock(block8, 0, 8, result, 0);
+            return result;
+        }
+
+        /// <summary>Triple DES ECB ile tek blok (8 byte) deşifre.</summary>
+        public static byte[] DecryptBlock(byte[] key16, byte[] block8)
+        {
+            byte[] key24 = new byte[24];
+            Array.Copy(key16, 0, key24, 0, 16);
+            Array.Copy(key16, 0, key24, 16, 8);
+
+            using var des = TripleDES.Create();
+            des.Key     = key24;
+            des.Mode    = CipherMode.ECB;
+            des.Padding = PaddingMode.None;
+            using var dec = des.CreateDecryptor();
+            byte[] result = new byte[8];
+            dec.TransformBlock(block8, 0, 8, result, 0);
+            return result;
+        }
+
+        /// <summary>KCV: clear key ile 8 sıfır bloğu şifrele, ilk 3 byte döndür.</summary>
+        public static byte[] ComputeKcv(byte[] clearKey16)
+        {
+            byte[] zeros = new byte[8];
+            byte[] enc   = EncryptBlock(clearKey16, zeros);
+            byte[] kcv   = new byte[3];
+            Array.Copy(enc, kcv, 3);
+            return kcv;
+        }
+
+        /// <summary>Parity biti düzelt (odd parity).</summary>
+        public static byte[] AdjustParity(byte[] key)
+        {
+            byte[] result = (byte[])key.Clone();
+            for (int i = 0; i < result.Length; i++)
+            {
+                int b   = result[i] & 0xFE;
+                int cnt = 0;
+                for (int bit = 1; bit < 8; bit++)
+                    if ((b >> bit & 1) == 1) cnt++;
+                result[i] = (byte)(b | (cnt % 2 == 0 ? 1 : 0));
+            }
+            return result;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Variant şifreleme
+    // ─────────────────────────────────────────────────────────────
+    public static class VariantCipher
+    {
+        /// <summary>
+        /// Clear key'i LMK altında variant yöntemiyle şifreler.
+        /// Double-length: sol yarı ve sağ yarı ayrı ayrı şifrelenir,
+        /// her birine variant XOR değeri uygulanır.
+        /// </summary>
+        public static byte[] Encrypt(byte[] clearKey16, byte[] lmk16, KeyType keyType)
+        {
+            var (leftXor, rightXor) = VariantValues.Xors[(int)keyType];
+
+            // LMK'nın variant kopyalarını oluştur
+            byte[] lmkLeft  = (byte[])lmk16.Clone();
+            byte[] lmkRight = (byte[])lmk16.Clone();
+
+            lmkLeft[0]  ^= leftXor;
+            lmkRight[0] ^= rightXor;
+
+            // Sol 8 byte ve sağ 8 byte ayrı ayrı şifrele
+            byte[] leftHalf  = new byte[8];
+            byte[] rightHalf = new byte[8];
+            Array.Copy(clearKey16, 0, leftHalf,  0, 8);
+            Array.Copy(clearKey16, 8, rightHalf, 0, 8);
+
+            byte[] encLeft  = DesHelper.EncryptBlock(lmkLeft,  leftHalf);
+            byte[] encRight = DesHelper.EncryptBlock(lmkRight, rightHalf);
+
+            byte[] result = new byte[16];
+            Array.Copy(encLeft,  0, result, 0, 8);
+            Array.Copy(encRight, 0, result, 8, 8);
+            return result;
+        }
+
+        /// <summary>LMK altındaki variant şifreli anahtarı deşifre eder.</summary>
+        public static byte[] Decrypt(byte[] encKey16, byte[] lmk16, KeyType keyType)
+        {
+            var (leftXor, rightXor) = VariantValues.Xors[(int)keyType];
+
+            byte[] lmkLeft  = (byte[])lmk16.Clone();
+            byte[] lmkRight = (byte[])lmk16.Clone();
+
+            lmkLeft[0]  ^= leftXor;
+            lmkRight[0] ^= rightXor;
+
+            byte[] leftHalf  = new byte[8];
+            byte[] rightHalf = new byte[8];
+            Array.Copy(encKey16, 0, leftHalf,  0, 8);
+            Array.Copy(encKey16, 8, rightHalf, 0, 8);
+
+            byte[] decLeft  = DesHelper.DecryptBlock(lmkLeft,  leftHalf);
+            byte[] decRight = DesHelper.DecryptBlock(lmkRight, rightHalf);
+
+            byte[] result = new byte[16];
+            Array.Copy(decLeft,  0, result, 0, 8);
+            Array.Copy(decRight, 0, result, 8, 8);
+            return result;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Basit TR-31 Key Block üretici (KBPK = Key Block Protection Key)
+    // Format: A (AES) yerine T (TDES) kullanımı, versiyon D (basit)
+    // Not: Gerçek TR-31 MAC hesabı burada CMAC/MAC ile yapılır.
+    //      Bu implementasyon eğitim amaçlıdır.
+    // ─────────────────────────────────────────────────────────────
+    public static class TR31Builder
+    {
+        /// <summary>
+        /// TR-31 Key Block üretir.
+        /// kbpk16: Key Block Protection Key (clear, 16 byte TDES)
+        /// clearKey16: Wrap edilecek anahtar (clear, 16 byte)
+        /// keyUsage: "P0", "M0" vb.
+        /// </summary>
+        public static string Build(byte[] kbpk16, byte[] clearKey16, string keyUsage)
+        {
+            // ── Header ──────────────────────────────────────────────
+            // Versiyon ID  : D (key derivation binding)
+            // Key Usage    : kullanıcıdan alınır
+            // Algorithm    : T = Triple DES
+            // Mode of Use  : N = No restriction (E = Encrypt, G = MAC olarak değiştirilebilir)
+            // Key Version  : 00
+            // Exportability: E (Exportable)
+            // # of Opt Blk : 00
+            // Reserved     : 00
+            // Toplam header: 16 karakter
+
+            int keyLength    = 16; // 2TDEA
+            // Payload = key length (2 byte) + key data (16 byte) + padding
+            // Padding: 8'in katına tamamla
+            int payloadLen   = 2 + keyLength;
+            int paddedLen    = ((payloadLen + 7) / 8) * 8;
+            int totalLen     = 16 + paddedLen * 2 + 8; // header + hex payload + MAC (8 byte = 16 hex)
+
+            string header = string.Format("D{0:D4}T{1}TN0000E00",
+                totalLen,
+                keyUsage.PadRight(2));
+
+            // ── Key Derivation (KBDV) ───────────────────────────────
+            // Basit KBDV: header bytes üzerinden AES/TDES CMAC
+            // Burada eğitim amaçlı XOR-based derivation kullanılıyor
+            // Gerçek implementasyonda CMAC kullanın (NIST SP 800-38B)
+            byte[] headerBytes = Encoding.ASCII.GetBytes(header.PadRight(16).Substring(0, 16));
+            byte[] kbek = DeriveKey(kbpk16, headerBytes, 0x01); // Key Block Encryption Key
+            byte[] kbak = DeriveKey(kbpk16, headerBytes, 0x02); // Key Block Authentication Key
+
+            // ── Payload ─────────────────────────────────────────────
+            byte[] payload = new byte[paddedLen];
+            payload[0] = (byte)(keyLength >> 8);
+            payload[1] = (byte)(keyLength & 0xFF);
+            Array.Copy(clearKey16, 0, payload, 2, 16);
+
+            // Random padding
+            if (paddedLen > payloadLen)
+            {
+                using var rng = RandomNumberGenerator.Create();
+                byte[] pad = new byte[paddedLen - payloadLen];
+                rng.GetBytes(pad);
+                Array.Copy(pad, 0, payload, payloadLen, pad.Length);
+            }
+
+            // ── Encrypt payload (CBC, IV=0) ──────────────────────────
+            byte[] encPayload = EncryptCbc(kbek, new byte[8], payload);
+
+            // ── MAC (ilk 8 byte CMAC benzeri) ───────────────────────
+            byte[] macInput = new byte[headerBytes.Length + encPayload.Length];
+            Array.Copy(headerBytes, 0, macInput, 0, headerBytes.Length);
+            Array.Copy(encPayload,  0, macInput, headerBytes.Length, encPayload.Length);
+            byte[] mac = ComputeMac(kbak, macInput);
+
+            // ── Assemble ─────────────────────────────────────────────
+            var sb = new StringBuilder();
+            sb.Append(header);
+            sb.Append(BytesToHex(encPayload));
+            sb.Append(BytesToHex(mac, 8)); // ilk 8 byte MAC
+            return sb.ToString();
+        }
+
+        private static byte[] DeriveKey(byte[] kbpk, byte[] data, byte counter)
+        {
+            // Basit derivasyon: CBC-MAC benzeri
+            byte[] input = new byte[8];
+            Array.Copy(data, 0, input, 0, Math.Min(8, data.Length));
+            input[0] ^= counter;
+            byte[] derived = DesHelper.EncryptBlock(kbpk, input);
+            // 16 byte için ikinci yarıyı da türet
+            byte[] input2 = new byte[8];
+            Array.Copy(data, 0, input2, 0, Math.Min(8, data.Length));
+            input2[0] ^= (byte)(counter + 0x10);
+            byte[] derived2 = DesHelper.EncryptBlock(kbpk, input2);
+            byte[] result = new byte[16];
+            Array.Copy(derived,  0, result, 0, 8);
+            Array.Copy(derived2, 0, result, 8, 8);
+            return result;
+        }
+
+        private static byte[] EncryptCbc(byte[] key16, byte[] iv8, byte[] data)
+        {
+            byte[] key24 = new byte[24];
+            Array.Copy(key16, 0, key24, 0,  16);
+            Array.Copy(key16, 0, key24, 16, 8);
+
+            using var des = TripleDES.Create();
+            des.Key     = key24;
+            des.IV      = iv8;
+            des.Mode    = CipherMode.CBC;
+            des.Padding = PaddingMode.None;
+            using var enc = des.CreateEncryptor();
+            return enc.TransformFinalBlock(data, 0, data.Length);
+        }
+
+        private static byte[] ComputeMac(byte[] key16, byte[] data)
+        {
+            // CBC-MAC: son 8 byte al
+            int blocks = (data.Length + 7) / 8;
+            byte[] padded = new byte[blocks * 8];
+            Array.Copy(data, padded, data.Length);
+
+            byte[] key24 = new byte[24];
+            Array.Copy(key16, 0, key24, 0,  16);
+            Array.Copy(key16, 0, key24, 16, 8);
+
+            using var des = TripleDES.Create();
+            des.Key     = key24;
+            des.IV      = new byte[8];
+            des.Mode    = CipherMode.CBC;
+            des.Padding = PaddingMode.None;
+            using var enc = des.CreateEncryptor();
+            byte[] result = enc.TransformFinalBlock(padded, 0, padded.Length);
+            // Son blok = MAC
+            byte[] mac = new byte[8];
+            Array.Copy(result, result.Length - 8, mac, 0, 8);
+            return mac;
+        }
+
+        private static string BytesToHex(byte[] bytes, int? len = null)
+        {
+            int n = len ?? bytes.Length;
+            var sb = new StringBuilder();
+            for (int i = 0; i < n && i < bytes.Length; i++)
+                sb.Append(bytes[i].ToString("X2"));
+            return sb.ToString();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Yardımcı metodlar
+    // ─────────────────────────────────────────────────────────────
+    public static class Utils
+    {
+        public static byte[] HexToBytes(string hex)
+        {
+            hex = hex.Replace(" ", "").Replace("-", "").ToUpper();
+            if (hex.Length % 2 != 0)
+                throw new ArgumentException("Hex string çift karakter sayısına sahip olmalı.");
+            byte[] result = new byte[hex.Length / 2];
+            for (int i = 0; i < result.Length; i++)
+                result[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            return result;
+        }
+
+        public static string BytesToHex(byte[] bytes) =>
+            BitConverter.ToString(bytes).Replace("-", "");
+
+        public static bool IsValidHex(string s)
+        {
+            s = s.Replace(" ", "").Replace("-", "");
+            if (s.Length % 2 != 0) return false;
+            foreach (char c in s)
+                if (!Uri.IsHexDigit(c)) return false;
+            return true;
+        }
+
+        public static void PrintSeparator(char c = '─', int len = 60) =>
+            Console.WriteLine(new string(c, len));
+
+        public static void PrintHeader(string title)
+        {
+            PrintSeparator('═');
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"  {title}");
+            Console.ResetColor();
+            PrintSeparator('═');
+        }
+
+        public static void PrintField(string label, string value, ConsoleColor color = ConsoleColor.Yellow)
+        {
+            Console.Write($"  {label,-30}: ");
+            Console.ForegroundColor = color;
+            Console.WriteLine(value);
+            Console.ResetColor();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Ana program
+    // ─────────────────────────────────────────────────────────────
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.OutputEncoding = Encoding.UTF8;
+            Utils.PrintHeader("LMK Key Utility v1.0 — Triple DES Double Length");
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("  ⚠  UYARI: Bu araç yalnızca TEST ortamında kullanılmalıdır!");
+            Console.WriteLine("     Production'da clear key işleme HSM üzerinde yapılmalıdır.");
+            Console.ResetColor();
+            Console.WriteLine();
+
+            // ── 1. LMK Girişi ──────────────────────────────────────
+            byte[] lmk = ReadHex16("LMK (32 hex karakter, 16 byte)", "0101010101010101 0202020202020202");
+
+            // ── 2. Clear Key Girişi ─────────────────────────────────
+            byte[] clearKey = ReadHex16("Clear Key (32 hex karakter, 16 byte)", "0123456789ABCDEF FEDCBA9876543210");
+            clearKey = DesHelper.AdjustParity(clearKey);
+
+            // ── 3. KBPK Girişi (TR-31 için) ─────────────────────────
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("  TR-31 Key Block için KBPK (Key Block Protection Key) gerekir.");
+            Console.WriteLine("  LMK ile aynı olabilir (test ortamı) veya farklı girebilirsiniz.");
+            Console.ResetColor();
+            byte[] kbpk = ReadHex16("KBPK (32 hex karakter, 16 byte) [Enter=LMK kullan]", "", allowEmpty: true);
+            if (kbpk == null) kbpk = lmk;
+
+            // ── 4. KCV Hesapla ──────────────────────────────────────
+            byte[] kcvClear = DesHelper.ComputeKcv(clearKey);
+
+            // ── 5. Key Type Seçimi ──────────────────────────────────
+            while (true)
+            {
+                Console.WriteLine();
+                Utils.PrintHeader("Key Type Seçimi");
+                Console.WriteLine();
+
+                var types = Enum.GetValues<KeyType>();
+                for (int i = 0; i < types.Length; i++)
+                    Console.WriteLine($"  [{i + 1}] {VariantValues.Label(types[i])}");
+
+                Console.WriteLine("  [A] Tümünü Göster");
+                Console.WriteLine("  [Q] Çıkış");
+                Console.WriteLine();
+                Console.Write("  Seçiminiz: ");
+                string input = Console.ReadLine()?.Trim().ToUpper() ?? "";
+
+                if (input == "Q") break;
+
+                if (input == "A")
+                {
+                    ShowAll(clearKey, lmk, kbpk, kcvClear);
+                    PauseAndContinue();
+                    continue;
+                }
+
+                if (int.TryParse(input, out int sel) && sel >= 1 && sel <= types.Length)
+                {
+                    KeyType kt = types[sel - 1];
+                    ShowSingle(clearKey, lmk, kbpk, kcvClear, kt);
+                    PauseAndContinue();
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  Geçersiz seçim!");
+                    Console.ResetColor();
+                }
+            }
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("  Program sonlandı.");
+            Console.ResetColor();
+        }
+
+        static void ShowAll(byte[] clearKey, byte[] lmk, byte[] kbpk, byte[] kcvClear)
+        {
+            Console.WriteLine();
+            Utils.PrintHeader("Tüm Key Type Sonuçları");
+            Console.WriteLine();
+            Utils.PrintField("Clear Key", Utils.BytesToHex(clearKey), ConsoleColor.White);
+            Utils.PrintField("Clear Key KCV", Utils.BytesToHex(kcvClear), ConsoleColor.Green);
+            Utils.PrintField("LMK", Utils.BytesToHex(lmk), ConsoleColor.DarkGray);
+            Console.WriteLine();
+
+            foreach (KeyType kt in Enum.GetValues<KeyType>())
+            {
+                Utils.PrintSeparator('─');
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"  {VariantValues.Label(kt)}");
+                Console.ResetColor();
+
+                byte[] variantEnc = VariantCipher.Encrypt(clearKey, lmk, kt);
+                byte[] variantKcv = ComputeVariantKcv(variantEnc, lmk, kt);
+                string keyBlock   = TR31Builder.Build(kbpk, clearKey, VariantValues.TR31Usage(kt));
+
+                Utils.PrintField("  Variant (LMK altında)", Utils.BytesToHex(variantEnc));
+                Utils.PrintField("  Variant KCV",           Utils.BytesToHex(variantKcv), ConsoleColor.Green);
+                Utils.PrintField("  TR-31 Key Block",       keyBlock, ConsoleColor.Cyan);
+                Console.WriteLine();
+            }
+        }
+
+        static void ShowSingle(byte[] clearKey, byte[] lmk, byte[] kbpk, byte[] kcvClear, KeyType kt)
+        {
+            Console.WriteLine();
+            Utils.PrintHeader($"Sonuç: {VariantValues.Label(kt)}");
+            Console.WriteLine();
+
+            byte[] variantEnc = VariantCipher.Encrypt(clearKey, lmk, kt);
+            byte[] variantKcv = ComputeVariantKcv(variantEnc, lmk, kt);
+            string keyBlock   = TR31Builder.Build(kbpk, clearKey, VariantValues.TR31Usage(kt));
+
+            Utils.PrintField("Clear Key",            Utils.BytesToHex(clearKey), ConsoleColor.White);
+            Utils.PrintField("Clear KCV",            Utils.BytesToHex(kcvClear), ConsoleColor.Green);
+            Console.WriteLine();
+            Utils.PrintField("Variant (LMK altında)", Utils.BytesToHex(variantEnc), ConsoleColor.Yellow);
+            Utils.PrintField("Variant KCV",           Utils.BytesToHex(variantKcv), ConsoleColor.Green);
+            Console.WriteLine();
+            Utils.PrintField("TR-31 Key Block",       keyBlock, ConsoleColor.Cyan);
+            Utils.PrintField("TR-31 Key Usage",       VariantValues.TR31Usage(kt), ConsoleColor.DarkCyan);
+            Console.WriteLine();
+
+            // Doğrulama: geri deşifre et
+            byte[] decrypted = VariantCipher.Decrypt(variantEnc, lmk, kt);
+            bool   match     = Utils.BytesToHex(decrypted) == Utils.BytesToHex(clearKey);
+            Console.ForegroundColor = match ? ConsoleColor.Green : ConsoleColor.Red;
+            Console.WriteLine($"  Variant doğrulama (decrypt→clear): {(match ? "✓ BAŞARILI" : "✗ BAŞARISIZ")}");
+            Console.ResetColor();
+        }
+
+        /// <summary>Variant anahtarın KCV'si: deşifre et, sonra KCV hesapla.</summary>
+        static byte[] ComputeVariantKcv(byte[] variantEnc, byte[] lmk, KeyType kt)
+        {
+            byte[] clear = VariantCipher.Decrypt(variantEnc, lmk, kt);
+            return DesHelper.ComputeKcv(clear);
+        }
+
+        static byte[] ReadHex16(string prompt, string example, bool allowEmpty = false)
+        {
+            while (true)
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                if (!string.IsNullOrEmpty(example))
+                    Console.WriteLine($"  Örnek: {example}");
+                Console.ResetColor();
+                Console.Write($"  {prompt}: ");
+                string input = Console.ReadLine()?.Trim() ?? "";
+
+                if (allowEmpty && string.IsNullOrEmpty(input))
+                    return null;
+
+                string clean = input.Replace(" ", "").Replace("-", "");
+                if (!Utils.IsValidHex(clean))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("  Hata: Geçerli hex değer giriniz.");
+                    Console.ResetColor();
+                    continue;
+                }
+                if (clean.Length != 32)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"  Hata: 32 hex karakter (16 byte) gerekli. Girilen: {clean.Length} karakter.");
+                    Console.ResetColor();
+                    continue;
+                }
+                return Utils.HexToBytes(clean);
+            }
+        }
+
+        static void PauseAndContinue()
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("  [Enter] ile devam edin...");
+            Console.ResetColor();
+            Console.ReadLine();
+        }
+    }
+}
